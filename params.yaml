@@ -1,0 +1,88 @@
+
+rawdatapathprefix: data/mouse/
+rawmodelpathprefix: data/model/
+
+cachepath: cache/
+resultspath: results/mouse/
+
+
+nwbdatapath: nwb/
+
+modelspath: rnn/
+modelresultspath: results/model/
+modelanalysispath: results/model/analysis/
+
+
+
+
+# physiology flags
+recalculatedecodevariables: false
+recalculateoutcomehistory: false
+recalculatecognitivesurplus: false
+recalculatedecoderelevancy: false
+recalculatesuppressionbehaviour: false
+behaviouralmodellowprob: 0.001
+
+# model flags
+trainmodel: false       # train
+resumemodel: false
+persistmodel: false     # when training or resuming, save model snapshots as files
+exportalldistances: false
+backtracerecalculate: false
+subspacerecalculate: false
+contextinferencerecalculate: false
+recalculaternnoutcomehistory: false
+
+
+# plot flags
+showplot: false
+saveplot: false
+showmultiplot: false
+savemultiplot: false
+
+
+
+ks2samplingrate: 25000.
+dt: 0.010             # spike bin width in seconds (optimal 10 ms)
+width: 0             # halfwidth of decoder lookback/lookforward in dt units (optimal 2 corresponding to 50 ms window)
+stimulusstart: 0.0
+stimulusend: 3.0
+stimuluslength: 3.0
+waterstart: 2.0
+preeventpadding: -1.5      # how the width of the trial is increased pre and post event timeing for analysis and display
+posteventpadding: 1.5
+inputdrivenlength: 0.5    # the estimated length of the input driven response
+
+
+sessions:
+
+  DT009: {mouseid: "DT009", brainarea: "V1", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CDT009data.csv",
+          units: ["2018-2020,wigner,ks+phy/kilosort2/V1/DT009shank1/", "2018-2020,wigner,ks+phy/kilosort2/V1/DT009shank2/"]}
+  DT014: {mouseid: "DT014", brainarea: "V1", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CDT014data.csv",
+        units: ["2018-2020,wigner,ks+phy/kilosort2/V1/DT014shank1/", "2018-2020,wigner,ks+phy/kilosort2/V1/DT014shank2/"]}
+  DT017: {mouseid: "DT017", brainarea: "V1", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CDT017data.csv",
+        units: ["2018-2020,wigner,ks+phy/kilosort2/V1/DT017shank1/", "2018-2020,wigner,ks+phy/kilosort2/V1/DT017shank2/"]}
+  DT021: {mouseid: "DT021", brainarea: "V1", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CDT021data.csv",
+        units: ["2018-2020,wigner,ks+phy/kilosort2/V1/DT021shank1/", "2018-2020,wigner,ks+phy/kilosort2/V1/DT021shank2/"]}
+  DT022: {mouseid: "DT022", brainarea: "V1", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CDT022data.csv",
+        units: ["2018-2020,wigner,ks+phy/kilosort2/V1/DT022shank1/", "2018-2020,wigner,ks+phy/kilosort2/V1/DT022shank2/"]}
+  ME110: {mouseid: "ME110", brainarea: "V1", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CME110data.csv",
+        units: ["2018-2020,wigner,ks+phy/kilosort2/V1/ME110shank1/", "2018-2020,wigner,ks+phy/kilosort2/V1/ME110shank2/"]}
+  ME113: {mouseid: "ME113", brainarea: "V1", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CME113data.csv",
+        units: ["2018-2020,wigner,ks+phy/kilosort2/V1/ME113shank1/", "2018-2020,wigner,ks+phy/kilosort2/V1/ME113shank2/"]}
+  MT020_2: {mouseid: "MT020_2", brainarea: "V1", events: "2021-2022,gonogo/V1/MT020_2/MT020_2-behaviour.csv",
+            units: ["2021-2022,gonogo/V1/MT020_2/MT020_2shanks/"]}
+
+  AC001: {mouseid: "AC001", brainarea: "ACC", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CAC001data.csv",
+          units: ["2018-2020,wigner,ks+phy/kilosort2/ACC/AC001shank1/", "2018-2020,wigner,ks+phy/kilosort2/ACC/AC001shank2/"]}
+  AC003: {mouseid: "AC003", brainarea: "ACC", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CAC003data.csv",
+          units: ["2018-2020,wigner,ks+phy/kilosort2/ACC/AC003shank1/", "2018-2020,wigner,ks+phy/kilosort2/ACC/AC003shank2/"]}
+  AC004: {mouseid: "AC004", brainarea: "ACC", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CAC004data.csv",
+          units: ["2018-2020,wigner,ks+phy/kilosort2/ACC/AC004shank1/", "2018-2020,wigner,ks+phy/kilosort2/ACC/AC004shank2/"]}
+  AC006: {mouseid: "AC006", brainarea: "ACC", events: "2018-2020,jrc+behav+training-mat,events-csv/trials-generated/trials-start-good-CAC006data.csv",
+          units: ["2018-2020,wigner,ks+phy/kilosort2/ACC/AC006shank1/", "2018-2020,wigner,ks+phy/kilosort2/ACC/AC006shank2/"]}
+
+
+
+publicationfigurespath: figures/
+publishfigures: true

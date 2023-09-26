@@ -1,0 +1,40 @@
+# paremeters for the rnn commands
+
+# model id
+modeltype: "rnn"
+# modeltype: "rnn-relu,energy"
+# modeltype: "rnn-tmp"
+
+
+# modelids: ["0114"]
+# modelids: ["0114","0115","0118"]            # 114, 115, 118
+# modelids: ["0113","0114","0116","0120"]            # 113, 116, 120        #  contextinference full correct error
+
+# modelids: ["0101","-","0140"]
+# modelids: ["0101","-","0120"]
+modelids: ["0101","-","0200"]
+
+# architecture
+nhidden: 30 # 12 30
+nsequence: 5 # 4 5
+
+# model saved and snapshots epochs
+snapshots: [2,5,10,50,100,200,500,1000,5000]
+# snapshots: [1000,5000]
+# snapshots: [2,5,10,50,100,200,500]
+
+ndigitsnepochs: 6        # number of leading padding 0s for epoch numbering
+
+# learning hyperparameters
+learningrate: 5e-4
+
+
+regularization: ["weightregularization"]
+# regularization: ["weightregularization","nonnegativerelu","energy"]
+architecture: []
+
+α: 1e-4          # alpha, regularization: weights L2
+β: 1e-1          # beta: activity L1/L2  (sparse/energy constraint)
+γ: 10            # gamma: nonnegative activity L1
+δ: 1e-6          # delta: symmetry difference L2
+hyperanneal: [1,1,1,1]
