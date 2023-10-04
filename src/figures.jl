@@ -3,13 +3,13 @@ const lowprob = config[:behaviouralmodellowprob]
 const cm = cgrad([:red, :white, :green],[0,0.4,0.6,1])
 
 function figure1()
-    figurepostfix = "paradigms,behavior,model"
+    figurepostfix = "paradigms,behavior"
     @info "making figure 1" figurepostfix
 
     mouseids = collectsubjectids("ACC")
     nmice = length(mouseids)
     
-    axs = plot(layout=@layout( [ a b{0.3w}; c d e{0.33w} ] ), size=(3*350, 2*300),legend=false)
+    axs = plot(layout=@layout( [ a b{0.3w}; c d{0.3w} ] ), size=(3*300, 2*300),legend=false)
 
 
 
@@ -25,7 +25,7 @@ function figure1()
     xlims!(ax, 0,1320)          # 1320  x 495
     ylims!(ax, 0,495)
     plot!(ax, xticks=false, yticks=false, axis=false)
-    @panellabel ax "A" -0.20 -0.1
+    @panellabel ax "A" -0.07 -0.18
 
     
 
@@ -36,21 +36,21 @@ function figure1()
 
     t = range(-1.5, stop=4.5, length=1000)
     yscale = 0.8
-    visual = ( 3 .>=  t .>= 0) * yscale
-    audio = (3 .>= t .>= 0) * yscale
-    reward = ((t .>= 2.01) .| (t .< 0) ) * yscale
+    visual = (0 .<= t .<= 3) * yscale
+    audio = (0 .<= t .<= 3) * yscale
+    reward = (2 .<= t .<= 3) * yscale
     ys = [3, 2, 1]
-    xs = [0.2,0.2,2.2]
-    for (v,x,y,c,l) in zip([visual, audio, reward], xs, ys, [:navy, :darkgreen, :red],["visual", "audio", "reward" ] )
+    xs = [0.2,0.2,0.2]
+    for (v,x,y,c,l) in zip([visual, audio, reward], xs, ys, [:navy, :darkgreen, :red],["visual", "auditory", "reward" ] )
         plot!(ax, t, y .+ v, color=c, lw=2)
-        annotate!(ax, x, y+0.5, text("$(l)",c,10,:left))
+        annotate!(ax, x, y+0.5, text("$(l)",c,9,:left))
     end
     xlims!(ax, -1.5, 4.5)
     ylims!(ax, 1-0.05, 1+3.05-0.2)
     plot!(ax, yticks=nothing, xticks=[0,2,3])
     xlabel!(ax, "time from stimulus onset [s]")
     @decoderbackground ax 0 3 2 :darkgrey
-    @panellabel ax "B" -0.05 1.1
+    @panellabel ax "B" -0.1 1.15
 
 
 
@@ -72,10 +72,10 @@ function figure1()
     choices = choicesselected(triallist)
     for sx in 1:2, congi in 1:2
         ix = (sx-1)*2+congi
-        plot!(inset_subplots=(3, bbox(0, 1-ix*0.22, 1, 0.18, :bottom, :left)))
-        ax = axs[5+ix]
+        plot!(ax, inset_subplots=(3, bbox(0, 1-ix*0.22, 1, 0.18, :bottom, :left)))
+        ax = axs[4+ix]
         for cx in 1:2         # contexts
-            if sx+congi==2 annotate!(ax, sum(boundaries[cx,1]),1.1, text(triallist[contextboundary-2+cx,:context]*"\ncontext",[:navy,:darkgreen][cx],:left, :bottom, 8)) end
+            if sx+congi==2 annotate!(ax, sum(boundaries[cx,1]),1.1, text(["visual","auditory"][cx]*"\ncontext",[:navy,:darkgreen][cx],:left, :bottom, 8)) end
             # plot moving averages
             trl = range(boundaries[cx,:]...)
             plot!(ax, trl, maperfs[trl,sx,congi], color=[:lightseagreen, :indianred][sx], ls=[:solid, :dash][congi], lw=2, alpha=0.8,label=nothing)
@@ -98,7 +98,7 @@ function figure1()
         # vline!(ax, [contextboundary-0.5], color=:grey, label=nothing)
     end
     plot!(inset_subplots=(3, bbox(0, 0, 1, 0.06, :bottom, :left)))
-    ax = axs[10]
+    ax = axs[9]
 
     bar!(ax, .! highperfs, color=:darkorange, linecolor=:darkorange, label=nothing)
     bar!(ax,    highperfs, color=:purple,     linecolor=:purple,     label=nothing)
@@ -111,7 +111,7 @@ function figure1()
     plot!(ax, yaxis=false)
     plot!(ax, bottom_margin=20*Plots.px)
     
-    @panellabel axs[3] "C" -0.15 1.1
+    @panellabel axs[3] "C" -0.07 1.1
 
 
     
@@ -119,7 +119,7 @@ function figure1()
 
     ax = axs[4]
     colors = [:navy :darkgreen]
-    plot!(ax, axis=false)
+    plot!(ax, axis=false, right_margin=30*Plots.px)
     nhighperfs = zeros(nmice,2)
     fractioncorrects = zeros(nmice,2)
     lls = zeros(nmice,2,5) # loglikelihoods (nmice, context, models)
@@ -133,7 +133,7 @@ function figure1()
         contextboundary = findfirst(triallist[!,:context].==triallist[end,:context])
         boundaries = [1 contextboundary-1; contextboundary nrow(triallist)]
         for (cx,context) in enumerate(["visual","audio"])
-            maskhp = (triallist[!,:context].==context)  .&  highperfs 
+            maskhp = (triallist[!,:context].==context) .&  highperfs 
             maskhpic =  maskhp .&  (triallist[!,:congruency].=="incongruent")
 
             # number of consistent trials
@@ -187,24 +187,26 @@ function figure1()
     end
 
     ix = 1
-    plot!(inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[10+ix]
+    plot!(axs[4], inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
+    ax = axs[9+ix]
     bar!(ax, (1:nmice).+[-0.165 +0.165 ], nhighperfs, bar_width=0.33, color=colors, linecolor=colors, label=nothing)
     xlims!(ax, 0, nmice+1)
     ylims!(ax, 0, 35)
     plot!(ax, xticks=false, yticks=[0,10,20,30], ytickfontsize=6, ylabel="number\nof trials", ylabelfontsize=7, yguidehalign=:left)
+    annotate!(ax, 1.5, 42, text("visual context", :navy, :left, 6))
+    annotate!(ax, 1.5, 36, text("auditory context", :darkgreen, :left, 6))
 
     ix = 2
-    plot!(inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[10+ix]
+    plot!(axs[4],inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
+    ax = axs[9+ix]
     bar!(ax, (1:nmice).+[-0.165 +0.165 ], fractioncorrects, bar_width=0.33,  color=colors, linecolor=colors, label=nothing)
     xlims!(ax, 0, nmice+1)
     ylims!(ax, 0, 1.05)
     plot!(ax, xticks=false, yticks=[0,1], ytickfontsize=6, ylabel="fraction\ncorrect", ylabelfontsize=7, yguidehalign=:left)
 
     ix = 3
-    plot!(inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[10+ix]
+    plot!(axs[4],inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
+    ax = axs[9+ix]
     bar!(ax, (1:nmice).+range(-0.3,0.3,length=4)', reshape(permutedims(lls[:,:,1:2],(1,3,2)),:,4), bar_width=0.15, 
            color=[:white colors[1] :white colors[2]], linecolor=[colors[1] colors[1] colors[2] colors[2]], label=nothing)
     xlims!(ax, 0, nmice+1)
@@ -212,8 +214,8 @@ function figure1()
     plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="log\nlikelihood", ylabelfontsize=7, yguidehalign=:left)
 
     ix = 4
-    plot!(inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[10+ix]
+    plot!(axs[4], inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
+    ax = axs[9+ix]
     colorlist = [colors[1] colors[1] colors[1] colors[2] colors[2] colors[2]]
     bar!(ax, (1:nmice).+range(-0.30,0.30,length=6)', reshape(permutedims(lls[:,:,3:5],(1,3,2)),:,6), bar_width=0.10, 
            color=colorlist, linecolor=colorlist, alpha=[0.3 0.6 1 0.3 0.6 1], label=nothing)
@@ -225,38 +227,6 @@ function figure1()
 
 
     
-
-
-
-
-
-
-    ax = axs[5]
-
-    plot!(ax,axis=false,xlims=(0,20),ylims=(0,20))
-    
-    plot!(ax, [10,11,11,10,10],[5,5,15,15,5], lw=3, color=:black)
-    
-    plot!(ax,[(6,8),(9,8)],arrow=arrow(:closed), lw=3, color=:navy)
-    annotate!(ax, 4, 8, text("visual", 10, :right, :navy, "Helvetica Bold"))
-    
-    plot!(ax,[(6,10),(9,10)],arrow=arrow(:closed), lw=3, color=:darkgreen)
-    annotate!(ax, 4, 10, text("audio", 10, :right, :darkgreen, "Helvetica Bold"))
-    
-    plot!(ax,[(6,17),(9,13)],arrow=arrow(:closed), lw=3, color=:red)
-    annotate!(ax, 4, 19, text("previous reward", 10, :left, :red, "Helvetica Bold"))
-
-    plot!(ax,[(12,11),(15,11)],arrow=arrow(:closed), lw=3, color=:darkorange)
-    annotate!(ax, 16, 11, text("decision", 10, :left, :darkorange, "Helvetica Bold"))
-
-    plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(0/360*2*pi,30/360*2*pi,30,2)), color=:black, lw=3)
-    plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(150/360*2*pi,360/360*2*pi,30,2)), color=:black, lw=3)
-    plot!(ax, map(u->(u[1]+10.65,u[2]+4.35), Plots.partialcircle(150/360*2*pi,155/360*2*pi,2,1.75)), color=:black, lw=3, arrow=(:tail,:closed))
-    annotate!(ax, 10.5, 0, text("previous state", 10, :center, :bottom, :black, "Helvetica Bold"))
-    
-
-    @panellabel ax "E" -0.02 1.1
-
 
 
 
@@ -314,8 +284,8 @@ function figure2()
     mouseaccind = nmicev1+1:nmicev1+nmiceacc
 
 
-    labelsstimulus = ["visual","audio"]
-    labelscontexts = ["visual","audio"]
+    labelsstimulus = ["visual","auditory"]
+    labelscontexts = ["visual","auditory"]
     labelsrelevancies = ["relevant" "irrelevant"; "irrelevant" "relevant"]
     colors = [:deepskyblue :green; :blue :lime]     # relevancy x stimulus
 
@@ -471,7 +441,7 @@ function figure2()
     # do the above annotate with just 2 digits and scientific notation of the p-values
     
 
-    xticks!(ax,tickpoints,["V1\nvisual", "V1\naudio", "ACC\nvisual", "ACC\naudio"])
+    xticks!(ax,tickpoints,["V1\nvisual", "V1\nauditory", "ACC\nvisual", "ACC\nauditory"])
     xlims!(ax,0,14)
     yticks!(ax,[0,0.2,0.4])
     ylims!(ax,-0.1,0.65)
@@ -601,7 +571,7 @@ function figure3()
     # outcome history mice
     nlookback = 3
     vx = 3
-    contexts = ["visual","audio"]
+    contexts = ["visual","auditory"]
     colors = [:lightseagreen,:olive]
     accuracieslists = []
     timestamps = -1.495:0.01:4.495
@@ -651,16 +621,16 @@ function figure3()
         scatter!(ax,S[mask,1],S[mask,2], color=colors[vix,aux], markerstrokewidth=0, markersize=3)         # label=string(vi)*"° "*string(au)*" Hz"
 
         # legend annotation
-        scatter!(ax, -0.13 .+ [0] .+ (vix-1)*w,  0.17 .+ [0] .+ (aux-1)*w, color=colors[vix,aux], markerstrokewidth=0, markersize=3)
+        scatter!(ax, -0.10 .+ [0] .+ (vix-1)*w,  0.17 .+ [0] .+ (aux-1)*w, color=colors[vix,aux], markerstrokewidth=0, markersize=3)
     end
-    annotate!(ax, -0.13+w/2, 0.17+w+0.02, "visual\ngo nogo", font(pointsize=6, color=:black, halign=:center, valign=:bottom))
-    annotate!(ax, -0.13-w+0.005, 0.17+w/2,  "audio nogo\ngo", font(pointsize=6, color=:black, halign=:right, valign=:center))
+    annotate!(ax, -0.10+w/2, 0.17+w+0.02, "visual\ngo nogo", font(pointsize=6, color=:black, halign=:center, valign=:bottom))
+    annotate!(ax, -0.10-w+0.005, 0.17+w/2,  "auditory nogo\ngo", font(pointsize=6, color=:black, halign=:right, valign=:center))
 
 
     xlims!(ax,-0.27,0.27)
     ylims!(ax,-0.27,0.27)
     xlabel!(ax,"visual DV")
-    ylabel!(ax,"audio DV\n(orthogonal projection)")
+    ylabel!(ax,"auditory DV\n(orthogonal projection)")
 
 
 
@@ -696,12 +666,12 @@ function figure3()
         push!(ps,pvalue(OneSampleTTest(angle, 90)))
     end
 
-    labels = ["visual","audio","context","decision","reward"]
+    labels = ["visual","auditory","context","decision","reward"]
     micercoords = 5*ones(nmice)
     
 
     ax = axs[2,2]
-    scatter!(ax, angles[:,1,2], micercoords, color=:darkcyan, markerstrokewidth=0, label="visual ⋅ audio, p=$(round(ps[1],digits=2))")
+    scatter!(ax, angles[:,1,2], micercoords, color=:darkcyan, markerstrokewidth=0, label="visual ⋅ auditory, p=$(round(ps[1],digits=2))")
     vline!(ax, [90], color=:grey, ls=:dash,label=nothing)
     xlims!(ax, 0, 180)
     ylims!(ax,0,15)
@@ -710,7 +680,7 @@ function figure3()
 
     ax = axs[2,3]
     scatter!(ax, angles[:,1,3], micercoords.+1, color=:purple, markerstrokewidth=0, label="context ⋅ visual, p=$(round(ps[2],digits=2))")
-    scatter!(ax, angles[:,2,3], micercoords, color=:olive,  markerstrokewidth=0, label="context ⋅ audio, p=$(round(ps[3],digits=2))")
+    scatter!(ax, angles[:,2,3], micercoords, color=:olive,  markerstrokewidth=0, label="context ⋅ auditory, p=$(round(ps[3],digits=2))")
     scatter!(ax, angles[:,3,4], micercoords.-1, color=:darkgoldenrod,  markerstrokewidth=0, label="context ⋅ decision, p=$(round(ps[4],digits=2))")
     vline!(ax, [90], color=:grey, ls=:dash,label=nothing)
     xlims!(ax, 0, 180)
@@ -757,15 +727,46 @@ function figure4()
     @info "making figure4" figurepostfix
 
 
-    axs = plot(layout=(2,3), size=(3*350, 2*300), bottom_margin=20*Plots.px, left_margin=20*Plots.px, grid=false, legend=false)
+    axs = plot(layout=@layout(  [ a b c{0.5w}; d e f g ] ), size=(4*350, 2*350),
+               bottom_margin=20*Plots.px, left_margin=40*Plots.px, grid=false, legend=false)
     
     # model panels
     machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
 
 
 
+    # RNN schematics
+    ax = axs[1]
 
-    ax = axs[1,1]
+    plot!(ax,axis=false,xlims=(0,20),ylims=(0,20))
+    
+    plot!(ax, [10,11,11,10,10],[5,5,15,15,5], lw=3, color=:black)
+    
+    plot!(ax,[(6,8),(9,8)],arrow=arrow(:closed), lw=3, color=:navy)
+    annotate!(ax, 4, 8, text("visual", 10, :right, :navy, "Helvetica Bold"))
+    
+    plot!(ax,[(6,10),(9,10)],arrow=arrow(:closed), lw=3, color=:darkgreen)
+    annotate!(ax, 4, 10, text("auditory", 10, :right, :darkgreen, "Helvetica Bold"))
+    
+    plot!(ax,[(6,17),(9,13)],arrow=arrow(:closed), lw=3, color=:red)
+    annotate!(ax, 4, 19, text("previous reward", 10, :left, :red, "Helvetica Bold"))
+
+    plot!(ax,[(12,11),(15,11)],arrow=arrow(:closed), lw=3, color=:darkorange)
+    annotate!(ax, 16, 11, text("decision", 10, :left, :darkorange, "Helvetica Bold"))
+
+    plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(0/360*2*pi,30/360*2*pi,30,2)), color=:black, lw=3)
+    plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(150/360*2*pi,360/360*2*pi,30,2)), color=:black, lw=3)
+    plot!(ax, map(u->(u[1]+10.65,u[2]+4.35), Plots.partialcircle(150/360*2*pi,155/360*2*pi,2,1.75)), color=:black, lw=3, arrow=(:tail,:closed))
+    annotate!(ax, 10.5, 0, text("previous state", 10, :center, :bottom, :black, "Helvetica Bold"))
+    
+    @panellabel ax "A" -0.2 1.05
+
+    
+
+
+
+
+    ax = axs[2]
     plot!(ax)
     modeids = 101:120
     ntimepoints = 75
@@ -796,9 +797,12 @@ function figure4()
     xlabel!(ax, "training epoch")
     ylabel!(ax, "acc. / frac. corr.")
 
+    @panellabel ax "B" -0.3 1.05
 
 
-    ax = axs[1,2]
+
+
+    ax = axs[3]
     # plot an example of congruent and incongruen trials timecourse with context and decision
     # this particular trial is saved as congruent = [false, true, true, false, true]
     modelidexample = "0114"
@@ -816,7 +820,10 @@ function figure4()
     end
     ylims!(ax,0.45,1.05)
     ylabel!(ax, "acc. / frac. corr.")
-    xlabel!(ax, "time from reference trial [AU]")
+    xlabel!(ax, "timesteps from reference trial")
+
+
+    @panellabel ax "C" -0.13 1.05
 
 
 
@@ -824,12 +831,11 @@ function figure4()
 
 
 
-
-
-
-    ax = axs[1,3]
+    
+    ax = axs[4]
+    # outcome history
     nlookback = 3
-    contexts = ["visual","audio"]
+    contexts = ["visual","auditory"]
     colors = [:lightseagreen,:olive]
     vx = 3
     modelid = "0116"
@@ -843,25 +849,25 @@ function figure4()
     for cx in eachindex(contexts)
         plot!(ax, timestampslookback, accuracy[cx,:,1], ribbon=accuracy[cx,:,3], 
                   lw=2, fillalpha=0.3, color=colors[cx], label=contexts[cx]*" context")
-        for h in 1:nlookback
-            @decoderbackground(ax, Ts[2][begin]+(nlookback-h)*Ts[end][end], Ts[3][end]+(nlookback-h)*Ts[end][end], Ts[2][end]+(nlookback-h)*Ts[end][end], bg=nothing)
-        end
+    end
+    for h in 1:nlookback
+        @decoderbackground(ax, Ts[2][begin]+(nlookback-h)*Ts[end][end], Ts[3][end]+(nlookback-h)*Ts[end][end], Ts[2][end]+(nlookback-h)*Ts[end][end], bg=nothing)
     end
     # xlims!(ax,-1.2,4.2+12)
     ylims!(ax,0.45,1.05)
-    plot!(ax,legend=:bottom, foreground_color_legend=nothing, background_color_legend=nothing)
-    xlabel!(ax, "time from reference trial [AU]")
+    plot!(ax,legend=(0.2,0.2), foreground_color_legend=nothing, background_color_legend=nothing)
+    xlabel!(ax, "timesteps from reference trial")
     ylabel!(ax, "decision accuracy")
 
+    @panellabel ax "D" -0.3 1.1
+
+
     
 
-    
 
 
 
 
-
-    # right 3×1 block
     # model suppression
 
     machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
@@ -881,7 +887,7 @@ function figure4()
 
     # plot the abstract go and nogo cells averaged over models
 
-    labelstimulus = ["visual","audio"]
+    labelstimulus = ["visual","auditory"]
     # colors = [:dodgerblue, :lime]
 
     # find the abstract go and nogo cells with the highest enhancement - suppression
@@ -892,12 +898,12 @@ function figure4()
     s = argmax(es,dims=2)
 
     
-    labelscontexts = ["visual","audio"]
+    labelscontexts = ["visual","auditory"]
     labelsrelevancies = ["relevant" "irrelevant"; "irrelevant" "relevant"]
     colors = [:deepskyblue :green; :blue :lime]     # relevancy x stimulus
     maxcells = 1
     for (sx,stimulus) in enumerate(labelstimulus)
-        ax = axs[2,sx]
+        ax = axs[4+sx]
         vspan!(ax,[Ts[2][begin],Ts[3][end]].-Ts[2][begin], color=:grey, alpha=0.3, label=nothing)
         vline!(ax,[Ts[3][begin]].-Ts[2][begin],color=:white, alpha=0.5, lw=2, label=nothing)
         hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
@@ -917,19 +923,29 @@ function figure4()
         end
         plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
         title!(ax,labelstimulus[sx]*" stimulus")
-        if sx==1 ylabel!(ax,"activity") end
         ylims!(ax,-0.5,0.5)
         xlims!(ax,Ts[1][begin]-Ts[2][begin],Ts[end][end]-Ts[2][begin])
-        xlabel!(ax,"time from stimulus onset [AU]")
-
+        xlabel!(ax,"timesteps from stimulus onset")
+        if sx==1
+            ylabel!(ax,"activity")
+            @panellabel ax "E" -0.35 1.1
+        else
+            plot!(ax, left_margin=20*Plots.px)    # keep together the same letter-labeled panels
+        end
+    
     end
 
     
+
+
+
+
+
     
     # plot    enhancement - suppression   vs    performance
     # performances dimensions: (nmodels, context, go/nogo, congruency)
     p = minimum(performances[:,:,:,2],dims=(2,3))[:,1,1] # incongruent only
-    ax = axs[2,3]
+    ax = axs[7]
 
     ess = vcat( [ es[s[:,1,gx]] for gx in 1:2 ]... )
     scatter!(ax, p, ess, color=:black, markerstrokewidth=0 )
@@ -944,9 +960,11 @@ function figure4()
     xlims!(ax,0,1)
     xlabel!(ax,"performance")
     ylabel!(ax,"activity difference\nrelevant - irrelevant")
+    plot!(ax, right_margin=20*Plots.px)
+
+    @panellabel ax "F" -0.3 1.1
 
 
-    @panellabels axs [5]
     
     plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)#, ytickfonthalign=:left, xtickfontvalign=:bottom, xguidevalign=:top)
     
@@ -989,9 +1007,9 @@ function figure5()
     # ax = axs[1,1]
     # plot!(ax, aspect_ratio=:equal, left_margin=30*Plots.px, top_margin=30*Plots.px)
     # plot!(ax,[(2,7),(10,7)], lw=2, alpha=0.5, color=:navy, label="visual subspace")
-    # plot!(ax,[(2,7),(2,15)], lw=2, alpha=0.5, color=:darkgreen, label="audio subspace")
+    # plot!(ax,[(2,7),(2,15)], lw=2, alpha=0.5, color=:darkgreen, label="auditory subspace")
     # plot!(ax,[(2,7),(8,7)],arrow=(5,5,:closed), lw=5, color=:navy, label="visual activity")
-    # plot!(ax,[(2,7),(2,13)],arrow=(5,5,:closed), lw=5, color=:darkgreen, label="audio activity")
+    # plot!(ax,[(2,7),(2,13)],arrow=(5,5,:closed), lw=5, color=:darkgreen, label="auditory activity")
     # plot!(ax,legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
     # xlims!(ax,-15,10)
     # ylims!(ax,0,20)
@@ -1012,7 +1030,7 @@ function figure5()
     # plot!(ax,[(2,12),(2,18)],arrow=(5,5,:closed), lw=5, color=:darkgreen)
     # xlims!(ax,-10,10)
     # ylims!(ax,0,20)
-    # annotate!(ax,0,15,text("audio context",8,:right,:darkgreen))
+    # annotate!(ax,0,15,text("auditory context",8,:right,:darkgreen))
     # annotate!(ax,0,5,text("visual context",8,:right,:navy))
     # title!(ax,"supressed irrelevant activity")
     # plot!(ax, axis=false)
