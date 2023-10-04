@@ -31,12 +31,12 @@ using LinearAlgebra
 
 
 include("NeuroscienceCommon.jl")
-using NeuroscienceCommon.NWBWrap
-using NeuroscienceCommon.MathUtils
-using NeuroscienceCommon.Figs
-using NeuroscienceCommon.ElectroPhysiology
-using NeuroscienceCommon.Discover
-using NeuroscienceCommon.AI
+using .NeuroscienceCommon.NWBWrap
+using .NeuroscienceCommon.MathUtils
+using .NeuroscienceCommon.Figs
+using .NeuroscienceCommon.ElectroPhysiology
+using .NeuroscienceCommon.Discover
+using .NeuroscienceCommon.AI
 
 
 
