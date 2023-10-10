@@ -32,6 +32,7 @@ using LinearAlgebra
 
 include("NeuroscienceCommon.jl")
 using .NeuroscienceCommon.NWBWrap
+NWBWrap.__init__()
 using .NeuroscienceCommon.MathUtils
 using .NeuroscienceCommon.Figs
 using .NeuroscienceCommon.ElectroPhysiology

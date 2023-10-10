@@ -30,6 +30,7 @@ end
 
 
 function loadnwbdata(mouseid::String)
+    @info "loadnwbdata" nwb  fn=joinpath(config[:rawdatapathprefix], config[:nwbdatapath], mouseid * ".nwb")
     io = nwb.NWBHDF5IO(joinpath(config[:rawdatapathprefix], config[:nwbdatapath], mouseid * ".nwb"), mode="r")
     nwbfile = io.read()
     return nwbfile,io

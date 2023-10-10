@@ -4,7 +4,7 @@ module Figs
 export @plotdecoder, @decoderbackground
 export invisibleaxis!
 export @addmargins, @panellabel, @panellabels, @gridoff
-
+export rectangle
 
 
 using Plots
@@ -136,6 +136,16 @@ macro gridoff(axs)
         plot!($(esc(axs)), grid=false, )
     end
 end
+
+
+
+
+
+# geometric shapes
+rectangle(x, y, w, h) = Shape(x .+ [0.,w,w,0.], y .+ [0.,0.,h,h])
+
+
+
 
 
 

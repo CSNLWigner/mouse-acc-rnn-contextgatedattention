@@ -9,7 +9,7 @@ function figure1()
     mouseids = collectsubjectids("ACC")
     nmice = length(mouseids)
     
-    axs = plot(layout=@layout( [ a b{0.3w}; c d{0.3w} ] ), size=(3*300, 2*300),legend=false)
+    axs = plot(layout=@layout( [ a b{0.3w}; c d{0.3w} ] ), size=(3*300, 2*300), dpi=600, legend=false)
 
 
 
@@ -119,7 +119,7 @@ function figure1()
 
     ax = axs[4]
     colors = [:navy :darkgreen]
-    plot!(ax, axis=false, right_margin=30*Plots.px)
+    plot!(ax, axis=false, right_margin=105*Plots.px)
     nhighperfs = zeros(nmice,2)
     fractioncorrects = zeros(nmice,2)
     lls = zeros(nmice,2,5) # loglikelihoods (nmice, context, models)
@@ -211,7 +211,17 @@ function figure1()
            color=[:white colors[1] :white colors[2]], linecolor=[colors[1] colors[1] colors[2] colors[2]], label=nothing)
     xlims!(ax, 0, nmice+1)
     # ylims!(ax, -5.05, 0.05)
-    plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="log\nlikelihood", ylabelfontsize=7, yguidehalign=:left)
+    plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="model log\nlikelihood", ylabelfontsize=6, yguidehalign=:left)
+    # legend
+    wh = 0.23; hh = 0.15/1.2*8.5
+    for (mx,m) in enumerate([1,2]), cx in 1:2
+        plot!(ax, rectangle(nmice+0.5+wh*(cx-1),-4.50-hh*(mx-1),wh,hh), linecolor=[:navy,:darkgreen][cx],
+                 fillcolor=[:white,[:navy,:darkgreen][cx]][mx], alpha=[1,1][mx], label=nothing)
+        if cx==1
+            annotate!(ax,nmice+0.5+2*wh,-4.50-hh*(mx-1)+hh/2,text([" context opposite"," context aware"][mx],:vcenter,:left,6))
+        end
+    end
+
 
     ix = 4
     plot!(axs[4], inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
@@ -221,7 +231,17 @@ function figure1()
            color=colorlist, linecolor=colorlist, alpha=[0.3 0.6 1 0.3 0.6 1], label=nothing)
     xlims!(ax, 0, nmice+1)
     ylims!(ax, -0.85, 0.05)
-    plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="log\nlikelihood", ylabelfontsize=7, yguidehalign=:left)
+    plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="model log\nlikelihood", ylabelfontsize=6, yguidehalign=:left)
+    # legend
+    wh = 0.2; hh = 0.19/1.2*8.5/10
+    for (mx,m) in enumerate([3,4,5]), cx in 1:2
+        plot!(ax, rectangle(nmice+0.5+wh*(cx-1),-0.50-hh*(mx-1),wh,hh), color=[:navy,:darkgreen][cx],alpha=[0.2,0.6,1.0][mx], label=nothing)
+        if cx==1
+            annotate!(ax,nmice+0.5+2*wh,-0.50-hh*(mx-1)+hh/2,text([" context unaware"," context aware bias"," context aware lapse"][mx],
+                                                          :vcenter,:left,6))
+        end
+    end
+
 
     @panellabel axs[4] "D" -0.15 1.1
 
@@ -261,7 +281,7 @@ function figure2()
 
 
 
-    axs = plot(layout=@layout([[a b c d; e f g h] i{0.2w} ]),size=(5*350, 2*300), legend=false,
+    axs = plot(layout=@layout([[a b c d; e f g h] i{0.2w} ]),size=(5*350, 2*300), legend=false, dpi=600,
                left_margin=20*Plots.px, bottom_margin=15*Plots.px, top_margin=20*Plots.px, right_margin=20*Plots.px)
 
 
@@ -490,7 +510,7 @@ function figure3()
 
 
     
-    axs = plot(layout=(2,3), size=(3*350, 2*300), bottom_margin=20*Plots.px, left_margin=20*Plots.px, grid=false, legend=false)
+    axs = plot(layout=(2,3), size=(3*350, 2*300), dpi=600, bottom_margin=20*Plots.px, left_margin=20*Plots.px, grid=false, legend=false)
 
 
 
@@ -727,7 +747,7 @@ function figure4()
     @info "making figure4" figurepostfix
 
 
-    axs = plot(layout=@layout(  [ a b c{0.5w}; d e f g ] ), size=(4*350, 2*350),
+    axs = plot(layout=@layout(  [ a b c{0.5w}; d e f g ] ), size=(4*350, 2*350), dpi=600,
                bottom_margin=20*Plots.px, left_margin=40*Plots.px, grid=false, legend=false)
     
     # model panels
@@ -738,28 +758,37 @@ function figure4()
     # RNN schematics
     ax = axs[1]
 
-    plot!(ax,axis=false,xlims=(0,20),ylims=(0,20))
+    # plot!(ax,axis=false,xlims=(0,20),ylims=(0,20))
     
-    plot!(ax, [10,11,11,10,10],[5,5,15,15,5], lw=3, color=:black)
+    # plot!(ax, [10,11,11,10,10],[5,5,15,15,5], lw=3, color=:black)
     
-    plot!(ax,[(6,8),(9,8)],arrow=arrow(:closed), lw=3, color=:navy)
-    annotate!(ax, 4, 8, text("visual", 10, :right, :navy, "Helvetica Bold"))
+    # plot!(ax,[(6,8),(9,8)],arrow=arrow(:closed), lw=3, color=:navy)
+    # annotate!(ax, 4, 8, text("visual", 10, :right, :navy, "Helvetica Bold"))
     
-    plot!(ax,[(6,10),(9,10)],arrow=arrow(:closed), lw=3, color=:darkgreen)
-    annotate!(ax, 4, 10, text("auditory", 10, :right, :darkgreen, "Helvetica Bold"))
+    # plot!(ax,[(6,10),(9,10)],arrow=arrow(:closed), lw=3, color=:darkgreen)
+    # annotate!(ax, 4, 10, text("auditory", 10, :right, :darkgreen, "Helvetica Bold"))
     
-    plot!(ax,[(6,17),(9,13)],arrow=arrow(:closed), lw=3, color=:red)
-    annotate!(ax, 4, 19, text("previous reward", 10, :left, :red, "Helvetica Bold"))
+    # plot!(ax,[(6,17),(9,13)],arrow=arrow(:closed), lw=3, color=:red)
+    # annotate!(ax, 4, 19, text("previous reward", 10, :left, :red, "Helvetica Bold"))
 
-    plot!(ax,[(12,11),(15,11)],arrow=arrow(:closed), lw=3, color=:darkorange)
-    annotate!(ax, 16, 11, text("decision", 10, :left, :darkorange, "Helvetica Bold"))
+    # plot!(ax,[(12,11),(15,11)],arrow=arrow(:closed), lw=3, color=:darkorange)
+    # annotate!(ax, 16, 11, text("decision", 10, :left, :darkorange, "Helvetica Bold"))
 
-    plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(0/360*2*pi,30/360*2*pi,30,2)), color=:black, lw=3)
-    plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(150/360*2*pi,360/360*2*pi,30,2)), color=:black, lw=3)
-    plot!(ax, map(u->(u[1]+10.65,u[2]+4.35), Plots.partialcircle(150/360*2*pi,155/360*2*pi,2,1.75)), color=:black, lw=3, arrow=(:tail,:closed))
-    annotate!(ax, 10.5, 0, text("previous state", 10, :center, :bottom, :black, "Helvetica Bold"))
+    # plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(0/360*2*pi,30/360*2*pi,30,2)), color=:black, lw=3)
+    # plot!(ax, map(u->(u[1]+10.5,u[2]+3.9), Plots.partialcircle(150/360*2*pi,360/360*2*pi,30,2)), color=:black, lw=3)
+    # plot!(ax, map(u->(u[1]+10.65,u[2]+4.35), Plots.partialcircle(150/360*2*pi,155/360*2*pi,2,1.75)), color=:black, lw=3, arrow=(:tail,:closed))
+    # annotate!(ax, 10.5, 0, text("previous state", 10, :center, :bottom, :black, "Helvetica Bold"))
+
+    # @panellabel ax "A" -0.2 1.05
+
     
-    @panellabel ax "A" -0.2 1.05
+    rnnschematicsimage = load(joinpath(config[:publicationfigurespath],"parts/","RNN-architecture-schematics-circle.png"))
+    plot!(ax, rnnschematicsimage)#, top_margin=50*Plots.px, left_margin=30*Plots.px)
+    # xlims!(ax, 40,1380)
+    # ylims!(ax, 110,600)
+    plot!(ax, xticks=false, yticks=false, axis=false)
+
+    @panellabel ax "A" -0.25 -0.82
 
     
 
@@ -995,7 +1024,7 @@ function figure5()
 
 
 
-    axs = plot(layout=(2,3),size=(3*350, 2*300), legend=false,
+    axs = plot(layout=(2,3),size=(3*350, 2*300), legend=false, dpi=600,
                left_margin=15*Plots.px, bottom_margin=15*Plots.px, top_margin=-15*Plots.px, right_margin=15*Plots.px)
 
 
