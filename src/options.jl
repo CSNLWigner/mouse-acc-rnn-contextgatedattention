@@ -22,14 +22,17 @@ argparsesettings = ArgParseSettings()
     "list"
         help = "query nwbfile, not staged"
         action = :command
-    "nwb"
-        help = "create and export nwb format from csv folder data"
+    "behaviour"
+        help = "calculate behaviour statistics"
         action = :command
     "chancelevelshuffle"
         help = "chance level by shuffling trials"
         action = :command
     "decodevariables"
         help = "decode stimulus, context and decision"
+        action = :command
+    "choicegeometry"
+        help = "compare stimulus and decision geometry"
         action = :command
     "lowdimortho"
         help = "show low dimensional orthogonal representation of stimuli"
@@ -55,6 +58,9 @@ argparsesettings = ArgParseSettings()
     "outcomehistory"
         help = "decode stimulus, decision and reward of previous trials from current trial"
         action = :command
+    "predictneurons"
+        help = "predict neurons from task variables"
+        action = :command
     "mlppp"
         help = "Demonstrating maximum likelihood poisson point process"
         action = :command
@@ -76,6 +82,9 @@ argparsesettings = ArgParseSettings()
     "rnnortho"
         help = "analyse multiple RNNs with orthogonal representation"
         action = :command
+    "rnncontextrepresentation"
+        help = "analyse multiple RNNs with context representation"
+        action = :command
     "rnntracesuppression"
         help = "analyse multiple RNNs via backtracing suppression for abstraction"
         action = :command
@@ -87,9 +96,6 @@ argparsesettings = ArgParseSettings()
         action = :command
     "rnnoutcomehistory"
         help = "decode stimulus, decision and reward of previous trials from current trial for models"
-        action = :command
-    "test"
-        help = "fast test of an idea"
         action = :command
     "figure"
         help = "generate figures"
@@ -128,6 +134,18 @@ end
     "5"
         help = "figure 5"
         action = :command
+    "S1"
+        help = "supplementary figure 1"
+        action = :command
+    "S2"
+        help = "supplementary figure 2"
+        action = :command
+    "S3"
+        help = "supplementary figure 3"
+        action = :command
+    "stats"
+        help = "calculate stats"
+        action = :command
 end
 
 
@@ -160,16 +178,3 @@ commandlineoptions = parse_args(args, argparsesettings; as_symbols=true)
 config = YAML.load_file("params.yaml"; dicttype=Dict{Symbol,Any})
 @info "config YAML" config
 
-
-
-
-
-
-
-# config[:brainareas] = Dict("V1"=>["ME108","ME110","ME112","ME113",
-#                                   "DT008","DT009","DT014","DT017","DT018","DT019","DT021","DT030","DT031","DT032",
-#                                   "SZ010"],
-#                            "ACC"=>["AC001","AC003","AC004","AC006","AC007"])
-# config[:areas] = [ ba for dn in config[:datanames] for ba in keys(config[:brainareas]) if dn in config[:brainareas][ba]]
-
-# @info "config YAML + brain areas" config

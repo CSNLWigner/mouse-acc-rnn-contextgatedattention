@@ -10,6 +10,46 @@ end
 
 
 
+function getortho(H,X,selecttrials, labeltimepoint)
+    nhidden = size(H,2)
+    ntimepoints = size(X,1)
+    # calculate the angle between variables representations
+    # ortho
+    accuracies = zeros(eltype(H),ntimepoints,size(X,2),3)
+    representations = zeros(ntimepoints,size(X,2),nhidden)
+    ortho = zeros(ntimepoints,size(X,2),size(X,2))     # angle between representations of variables
+    for xi in axes(X,2)
+        d = Float64.(permutedims(H[:,:,selecttrials[xi]],[3,1,2]))      # change order to trials,timesteps,neurons for activity
+        # d = standardize(ZScoreTransform, d, dims=(1,2))
+        standardizearray!(d,dims=(1,2))
+        # for t in axes(d,2)
+        #     d[:,t,:] = standardize(ZScoreTransform, d[:,t,:], dims=1)
+        # end
+        l = Float64.(X[labeltimepoint,xi,selecttrials[xi]])   # and for target, to be
+        # @info "l" size(l)
+        # l = l[sortperm(rand(length(l)))]
+        # d = [ 1*randn(256,ntimepoints,nhidden).-2; 1*randn(256,ntimepoints,nhidden).+2 ]
+        # l = [ -zeros(256);ones(256) ]
+        if length(unique(l))>1                      # e.g. decision may not be present before decision point
+            _, a, c = decodevariablefromactivity(d,l)
+        else
+            a = 0.5 .* ones(ntimepoints,3)
+            c = zeros(ntimepoints,nhidden+1,3)
+        end
+        accuracies[:,xi,:] = a
+        representations[:,xi,:] = c[:,1:end-1,1]   # leave out the intercept: (end-1)
+        # @info "intercepts" labelstask[xi] c[t,end] c[t,1:end-1]' a[t,1]
+    end
+    Threads.@threads for t in 1:ntimepoints      
+        for xi in axes(X,2)
+            for yi in axes(X,2)
+                ortho[t,xi,yi] = angleofvectors(representations[t,xi,:],representations[t,yi,:])
+            end
+        end
+    end
+    return ortho
+end
+
 
 
 function preparedata(X, y, Ts)
@@ -158,21 +198,21 @@ function modelrnn(X, y, Ts, machineparameters)
     
     # decode:
     accuracies = zeros(ntimecourse, 2 + 4 + 1 + 2 +   1   + 4, 3)
-    coefs = zeros(ntimecourse, size(accuracies,2), nhidden+1)
+    coefs = zeros(ntimecourse, size(accuracies,2), nhidden+1, 3)              # last stats
     accuraciesoutput = zeros(ntimecourse, 4, 3)
-    coefsoutput = zeros(ntimecourse, size(accuraciesoutput,2), 2+1)
+    coefsoutput = zeros(ntimecourse, size(accuraciesoutput,2), 2+1, 3)
     # general stimuli
-    _,accuracies[:,1,:],coefs[:,1,:] = decodevariablefromactivity(Hp,v)
-    _,accuracies[:,2,:],coefs[:,2,:] = decodevariablefromactivity(Hp,a)
+    _,accuracies[:,1,:],coefs[:,1,:,:] = decodevariablefromactivity(Hp,v)
+    _,accuracies[:,2,:],coefs[:,2,:,:] = decodevariablefromactivity(Hp,a)
     # relevant irrelevant context separation stimuli and decision
     contextmask = context[1,:].==code[1]
-    _,accuracies[:,3,:],coefs[:,3,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[1][begin],contextmask]))
-    _,accuracies[:,4,:],coefs[:,4,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[2][begin],contextmask]))
+    _,accuracies[:,3,:],coefs[:,3,:,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[1][begin],contextmask]))
+    _,accuracies[:,4,:],coefs[:,4,:,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[2][begin],contextmask]))
     contextmask = context[1,:].==code[2]
-    _,accuracies[:,5,:],coefs[:,5,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[1][begin],contextmask]))
-    _,accuracies[:,6,:],coefs[:,6,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[2][begin],contextmask]))
+    _,accuracies[:,5,:],coefs[:,5,:,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[1][begin],contextmask]))
+    _,accuracies[:,6,:],coefs[:,6,:,:] = decodevariablefromactivity(Hp[contextmask,:,:],Float64.(X[decisionpoint,codeindices[2][begin],contextmask]))
     # full context
-    _,accuracies[:,7,:],coefs[:,7,:] = decodevariablefromactivity(Hp,c)
+    _,accuracies[:,7,:],coefs[:,7,:,:] = decodevariablefromactivity(Hp,c)
     
     # calculate congruency per trial, last is loss, previous are history trials (first index)
     # (trialsequenceposition, gonogo, congruency, context, trials)
@@ -189,8 +229,8 @@ function modelrnn(X, y, Ts, machineparameters)
             mask = contextmask .& ((congruency[end,1,cn,cx,:].==1) .| (congruency[end,2,cn,cx,:].==1))
             ci = 7+(cx-1)*2+cn
             # decode from hidden and from output layer
-            _,accuracies[:,ci,:],coefs[:,ci,:] = decodevariablefromactivity(Hp[mask,:,:],Float64.(y[decisionpoint,1,mask]))
-            _,accuraciesoutput[:,ci-7,:],coefsoutput[:,ci-7,:] = decodevariablefromactivity(Op[mask,:,:],Float64.(y[decisionpoint,1,mask]))
+            _,accuracies[:,ci,:],coefs[:,ci,:,:] = decodevariablefromactivity(Hp[mask,:,:],Float64.(y[decisionpoint,1,mask]))
+            _,accuraciesoutput[:,ci-7,:],coefsoutput[:,ci-7,:,:] = decodevariablefromactivity(Op[mask,:,:],Float64.(y[decisionpoint,1,mask]))
         end
     end
     # decision label accuracy manually (without decoder), to establish model performance
@@ -308,10 +348,10 @@ function modelrnn(X, y, Ts, machineparameters)
             # sm = dropdims(std(coefs[region,cx,1:end-1],dims=1),dims=1)
             # em = sm / sqrt(length(region))
             
-            violin!(axs, coefs[region,1:7,nx], color=colors, legend=false)
+            violin!(axs, coefs[region,1:7,nx,1], color=colors, legend=false)
             xticks!(axs, 1:7)
             hline!(axs,[0],color=:gold,alpha=0.8)
-            yl = 3*mean(abs.(coefs[region,1:7,nx]))
+            yl = 3*mean(abs.(coefs[region,1:7,nx,1]))
             ylims!(axs,-yl,yl)
 
             if nx==1
@@ -476,7 +516,7 @@ function modelrnn(X, y, Ts, machineparameters)
 
     # plot decoder weights throughout the timeline of the last trial
     axs = ax[3,5]
-    heatmap!(axs, coefs[:,7,:]', colormap=:berlin, colorbar=nothing, clims=(-2.,2.) )
+    heatmap!(axs, coefs[:,7,:,1]', colormap=:berlin, colorbar=nothing, clims=(-2.,2.) )
 
     # context dependent activities of cells
     axs = ax[3,1]
@@ -603,9 +643,9 @@ function modelrnn(X, y, Ts, machineparameters)
         H = Hs[sx,:,:,:]
         # snap = lpad(s,machineparameters[:ndigitsnepochs],"0")
         # @load(joinpath(config[:modelanalysispath],  "distances", filename*"-e"*snap*"-mit,ortho.bson"), @__MODULE__, Ts, performance, mit, ortho, labelstask, colors)
-        mit = getmit(H,Xcx,selecttrials,nonnegative=any(e->e in machineparameters[:architecture],[:nonnegative, :nonnegativerelu]))
-        if config[:exportalldistances]
-            ortho = getortho(H,Xcx,selecttrials,decisionpoint) # does not need to be calculated for the last snap "mut" plot, only for export
+        if config[:exportalldistances]     # these does not need to be calculated for the last snap "mut" plot, only for export
+            # ortho = [ getortho(H,Xcx,selecttrials, ntimepoints - Ts[end][end] + Ts[2][1]),  getortho(H,Xcx,selecttrials,decisionpoint) ]
+            ortho = getortho(H,Xcx,selecttrials,decisionpoint)            # last is the time where the label to be included
             snap = lpad(s,machineparameters[:ndigitsnepochs],"0")
             performance = zeros(2,2,2)        # holds fraction correct for (context,go/nogo,congruency)
             fractioncorrect = getfractioncorrect(Ds[sx,:,:,:])
@@ -616,7 +656,7 @@ function modelrnn(X, y, Ts, machineparameters)
                     end
                 end
             end
-            @save(joinpath(config[:modelanalysispath],  "distances", filename*"-e"*snap*"-mit,ortho.bson"), Ts, performance, mit, ortho, labelstask, colors)
+            @save(joinpath(config[:modelanalysispath],  "distances", filename*"-e"*snap*"-mit,ortho.bson"), Ts, performance, ortho, labelstask, colors)
         end
     end
 
@@ -626,7 +666,7 @@ function modelrnn(X, y, Ts, machineparameters)
     for xi in axes(Xcx,2), hi in 1:nhiddenmax
         axs = ax[xi,hi]
 
-        plot!(axs, mit[:,xi,hi], color=colors[xi], lw=3, legend=false)
+        # plot!(axs, mit[:,xi,hi], color=colors[xi], lw=3, legend=false)
         ylims!(axs, 0, 1)
 
         vspan!(axs,reshape((repeat([Ts[2][begin] Ts[3][end]],sequencelength).+(0:ntimecourse:sequencelength*(ntimecourse-1)))',:,1), color=:grey, alpha=0.3, label=nothing)
@@ -644,9 +684,9 @@ function modelrnn(X, y, Ts, machineparameters)
         for (rx,region) in enumerate([Ts[2],Ts[3],Ts[4]])     # early stim, decision stim, post stim
             axs = ax[10+rx,hi]
             # plot distribution, but avoid nan results
-            if ~ any(isnan.(mit[ntimepoints-ntimecourse .+ region,:,hi]))
-                violin!(axs, (1:size(Xcx,2))', mit[ntimepoints-ntimecourse .+ region,:,hi], color=colors, legend=false)
-            end
+            # if ~ any(isnan.(mit[ntimepoints-ntimecourse .+ region,:,hi]))
+            #     violin!(axs, (1:size(Xcx,2))', mit[ntimepoints-ntimecourse .+ region,:,hi], color=colors, legend=false)
+            # end
             xlims!(axs,0,size(Xcx,2)+1)
             ylims!(axs,0,1)
 
@@ -862,7 +902,7 @@ function contextinferencernn(X, y, Ts, machineparameters)
             Hp = Float64.(permutedims(Hs[end,end-Ts[end][end]+1:end,:,:],[3,1,2]))
             for (mskx,maskdir) in enumerate((maskgo, .! maskgo))
                 _,accuracies,coefs = decodevariablefromactivity(Hp,Float64.(maskdir .& maskcontext))
-                contextorders[mx,:,mskx] = sortperm( mean(coefs,dims=1)[1,1:nhidden], rev=true)
+                contextorders[mx,:,mskx] = sortperm( mean(coefs,dims=1)[1,1:nhidden,1], rev=true)
             end
 
             
@@ -1175,13 +1215,147 @@ end
 
 
 
-function fillrange!(machineparameters)
-    # test if we want a range, between first and last
-    if any(machineparameters[:modelids].=="-") || any(machineparameters[:modelids].=="..")
-        machineparameters[:modelids] = [   "0$i" for i in
-                      parse(Int, machineparameters[:modelids][begin]):parse(Int, machineparameters[:modelids][end])   ]
+
+
+
+
+
+
+function analysernnortho(machineparameters)
+    
+    fillrange!(machineparameters) # fill if we want a range, between first and last
+
+    # collect ids as strings
+    modelids = machineparameters[:modelids]
+    snapshots = lpad.(machineparameters[:snapshots],machineparameters[:ndigitsnepochs],"0")
+
+
+    filenamebase = machineparameters[:modeltype]*"-s$(machineparameters[:nsequence])-h$(machineparameters[:nhidden])"
+    pathbase = joinpath(config[:modelanalysispath],  "distances",filenamebase)
+
+    
+    # assess model sizes
+    @load(joinpath(config[:modelanalysispath],  "distances", filenamebase*"-r"*modelids[1]*"-e"*snapshots[1]*"-mit,ortho.bson"), @__MODULE__,
+          Ts, performance, mit, ortho, labelstask, colors)
+
+    
+    distance = ortho# eval(measure)
+    nmodels = length(modelids)
+    nsnaps = length(snapshots)
+    ntimecourse = Ts[end][end]
+    ntimepoints = machineparameters[:nsequence] * ntimecourse
+    nfactors = size(distance,2)
+    
+    performances = zeros(nmodels,nsnaps,2,2,2)     # (models,nsnaps,context,go/nogo,congruency)
+    distances = zeros(eltype(distance),nmodels,nsnaps,ntimecourse,nfactors,nfactors) # (nmodels,nsnaps,ntimecourse,nfactors,nneurons)
+
+    for (ix,id) in enumerate(modelids)
+        for (sx,sn) in enumerate(snapshots)
+            @load( joinpath(config[:modelanalysispath],  "distances", filenamebase*"-r"*id*"-e"*sn*"-mit,ortho.bson"), @__MODULE__,
+                           Ts, performance, mit, ortho, labelstask, colors )
+            performances[ix,sx,:,:,:] = performance
+            # @info "performance check" id,sn mean(performance)
+            distance = ortho                  
+            distances[ix,sx,:,:,:] = distance[end-ntimecourse+1:end,:,:]
+        end
     end
-    # change to lpad(i,3,"0")
+
+    @info "size" nmodels nsnaps size(performances) size(distances) labelstask
+
+    timecourse = 1:Ts[end][end]
+
+
+
+
+    # change to absolute difference from 90
+    # distances = - abs.(90 .- distances) .+ 90
+
+    # find the worst performing congruency aspect over all contexts and go nogo stims
+    perfs = minimum(reshape(performances,nmodels,nsnaps,:),dims=3)
+    perflim = 0.0
+    whatperf = "mini"
+    # or calculate the average performance
+    # perfs = mean(reshape(performances,nmodels,nsnaps,:),dims=3)
+    # perflim = 0.75
+    # whatperf = "mean"
+    
+    # find the orthogonality between specific variables for each model
+    # varlist = [1,2,3,10]
+    # varlist = [4,5,6,10]
+    varlist = [1,2,3,4,5,6,7,8,9,10]
+    
+    @info "variables" labelstask[varlist]
+    comparisons = [[1,2],[1,10],[2,10],[3,10],[1,3],[2,3]]
+    comparisontimepoints = [Ts[2][1:1], Ts[2][1:1], Ts[2][1:1],  Ts[3], Ts[3], Ts[3] ]
+    angles = zeros(nmodels,ntimecourse,length(comparisons))       # vis-aud, cx-vis, cx-aud, cx-dec, vis-dec, aud-dec
+
+
+    perflim = 0.
+
+
+    ax = plot(layout=(length(comparisons),2), size=(2*400,length(comparisons)*300), xgrid=false, ygrid=false,
+                      left_margin = 30*Plots.px, bottom_margin = 30*Plots.px, legend=nothing)
+
+
+    for vx in axes(comparisons,1)
+        ix1 = varlist[comparisons[vx][1]]
+        ix2 = varlist[comparisons[vx][2]]
+
+        angles[:,:,vx] = distances[:,end,:,ix1,ix2]
+
+        axs = ax[vx,1]
+        for ix in axes(distances,1) # go over each model
+            m = distances[ix,end,:,ix1,ix2]      # take the last snapshot for this display
+            plot!(axs,timecourse,m,color=:crimson,alpha=0.2)
+        end
+        plot!(axs,timecourse,dropdims(mean(distances[:,end,:,ix1,ix2],dims=1),dims=1),color=:crimson,lw=2)
+
+        hline!(axs,[90],color=:grey,alpha=0.5)
+        ylims!(axs,60,120)
+        xlabel!(axs,"timecourse")
+        ylabel!(axs,"angle")
+        title!(axs,"$(labelstask[ix1]) vs $(labelstask[ix2])\nall models")
+        plot!(axs,left_margin=50*Plots.px)
+
+
+        
+        axs = ax[vx,2]
+        for ix in axes(distances,1) # go over each model
+            # m = abs.(distances[ix,:,ix1,ix2] .- 90)
+            m = distances[ix,:,:,ix1,ix2] # draw each snapshot with a connected lineplot
+            # violin!(axs, [perfs[ix,1]], m, color=:crimson, bar_width=0.01)
+            mm = mean(m[:,comparisontimepoints[vx]],dims=2) # average over timepoints for each comparison
+            # scatter!(axs, [perfs[ix,1]], [mm])
+            plot!(axs, perfs[ix,:,1], mm, markershape=:circle, markerstrokewidth=0)
+        end
+        plot!(axs,left_margin=60*Plots.px)
+        
+        # define correlation test
+        m = dropdims(mean(reshape(distances[:,:,comparisontimepoints[vx],ix1,ix2],:,length(comparisontimepoints[vx])),dims=2),dims=2)
+        pf = vec(perfs[:,:,1])
+        â,r,pv = getcorrelation(pf, m)
+        r = round(r,digits=4)
+        pv = round(pv,digits=8)
+        plot!(axs, [perflim,1.], â[1].*[perflim,1.].+â[2], color=:white)
+        annotate!(axs, perflim+(1-perflim)/2, 76, "r=$(r) p=$(pv)", fontsize=8)
+
+        hline!(axs,[90],color=:grey,alpha=0.5)
+        xlims!(axs,perflim,1)
+        ylims!(axs,60,120)
+        xlabel!(axs,"performance")
+        ylabel!(axs,"angle")
+        title!(axs,"$(labelstask[ix1]) vs $(labelstask[ix2])\nperformance")
+
+    end
+    
+    plot!(ax, plot_title=filenamebase)
+
+    display(ax)
+    savefig(ax, joinpath(config[:modelanalysispath], filenamebase*"-$(whatperf)perf-ortho.png"))
+
+    validmodels = mean(performances[:,end,:,:,:],dims=(2,3,4))[:,1,1,1] .> 0.9
+    @save(joinpath(config[:modelanalysispath],  "distances", filenamebase*"-angles.bson"), angles, validmodels)
+
 end
 
 
@@ -1563,6 +1737,119 @@ end
 
 
 
+function contextrepresentation(X, y, Ts, machineparameters)
+    # data
+    Xs, ys, sequencelength, ntimepoints, ntimecourse, ntrials,
+        decisionpoints, decisionpoint, rewardprofile = preparedata(X, y, Ts)
+    nhidden = machineparameters[:nhidden]
+    noutput = size(y,2)
+    ninput = size(X,2)
+    timestamps = Ts[1][1]:Ts[end][end] .+ ntimepoints .- Ts[end][end]
+    timestamps = 61:75
+    labelstim = ["visual","audio"]
+    labelinstr = ["go","nogo"]
+    labelcontextproj = ["pre","start","decision"]
+
+    filenamebase = machineparameters[:modeltype]*"-s$sequencelength-h$nhidden"
+
+    # load context decoders for each model
+    @load( joinpath(config[:modelanalysispath],  "contextrepresentation", "contextprojections-rnn.bson"), @__MODULE__, CRs, CRPs, SRs, SRPs, validmodels)
+    # validmodels = validmodels .& rand([true, false], size(validmodels))
+    CRs = CRs[validmodels,:,:,:]
+    CRPs = CRPs[validmodels,:,:,:,:]    # nmodels, ncontexts, ngonogo, ntimepoints, nprojection
+    SRs = SRs[validmodels,:,:,:]
+    SRPs = SRPs[validmodels,:,:,:,:]    # nmodels, stimulus, ncontexts, ngonogo, ntimepoints
+    nmodels = sum(validmodels)
+
+
+
+    # get masks
+    maskcontext, maskvisualgo, maskaudiogo, maskgo = getmasks(X[decisionpoint,[1,3],:])
+
+
+    axs = plot(layout=(5,7), size=(7*350,5*300), xgrid=false, ygrid=false, legend=false,
+                left_margin = 20*Plots.px, bottom_margin = 20*Plots.px, top_margin = 20*Plots.px)
+
+    maskcontexts = [maskcontext, .! maskcontext ]
+    maskgos = [maskgo, .! maskgo ]
+
+    # context
+
+    for ct in 1:3
+        for gx in 1:2, cx in 1:2
+            ax = axs[ct,(cx-1)*2+gx]
+            m = CRPs[:,cx,gx,timestamps,ct]
+            # plot!(ax, m', color=[:blue,:green][cx], ls=[:solid, :dash][gx], alpha=0.2)
+            plot!(ax, mean(m,dims=1)', ribbon=std(m,dims=1)'/sqrt(nmodels), color=[:blue,:green][cx], ls=[:solid, :dash][gx], lw=2, fillalpha=0.3)
+            @nolinebackground(ax,Ts[2][1],Ts[3][end],Ts[3][1],bg=:black)
+            hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
+            vline!(ax,[[Ts[1][2],Ts[2][1],Ts[3][1]][ct]],color=:purple,label=nothing)
+            ylims!(ax,-0.5,0.5)
+            if cx+gx==2 ylabel!(ax,"$(labelcontextproj[ct])\ncontext proj") end
+            if ct==1 title!(ax,"$(labelstim[cx]) context $(labelinstr[gx])" ) end
+        end
+
+
+        for (dx,m) in enumerate(( mean(CRPs[:,:,:,timestamps,ct],dims=(2,3))[:,1,1,:],
+                                #   mean(CRPs[:,1,:,timestamps,ct] - CRPs[:,2,:,timestamps,ct], dims=2)[:,1,:] ))
+                                  CRPs[:,1,1,timestamps,ct] - CRPs[:,2,1,timestamps,ct],
+                                  CRPs[:,1,2,timestamps,ct] - CRPs[:,2,2,timestamps,ct]) )
+            ax = axs[ct,4+dx]
+        # m = mean(CRPs[:,:,:,timestamps,ct],dims=(2,3))[:,1,1,:]
+        # m = mean(abs.(CRPs[:,1,:,timestamps,ct] - CRPs[:,2,:,timestamps,ct]),dims=(2))[:,1,:]
+        # m = (CRPs[:,1,gx,timestamps,ct] - CRPs[:,2,gx,timestamps,ct])
+        # plot!(ax, m', color=:mediumvioletred, alpha=0.2)
+            plot!(ax, mean(m,dims=1)', ribbon=std(m,dims=1)'/sqrt(nmodels), color=:mediumvioletred, lw=2, fillalpha=0.3)
+            @nolinebackground(ax,Ts[2][1],Ts[3][end],Ts[3][1],bg=:black)
+            hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
+            vline!(ax,[[Ts[1][2],Ts[2][1],Ts[3][1]][ct]],color=:purple,label=nothing)
+            # ylims!(ax,-0.15,0.15) 
+            if dx==1 ylims!(ax,-0.15,0.15) else ylims!(ax,-0.5,0.5) end
+            if ct==1 title!(ax,["mean context","diff context go", "diff context nogo"][dx] ) end
+        end
+    end
+
+    # stimulus
+    colors = [:deepskyblue :blue; :lime :green]
+    for sx in 1:2, rx in 1:2
+        cx = 2 - (sx==rx)
+        for gx in 1:2
+            ax = axs[3+sx,(cx-1)*2+gx]
+            m = SRPs[:,sx,cx,gx,timestamps]
+            # plot!(ax, m', color=colors[sx,rx], ls=[:solid, :dash][gx], alpha=0.2)
+            plot!(ax, mean(m,dims=1)', ribbon=std(m,dims=1)'/sqrt(nmodels), color=colors[sx,rx], ls=[:solid, :dash][gx], lw=2, fillalpha=0.3)
+            @nolinebackground(ax,Ts[2][1],Ts[3][end],Ts[3][1],bg=:black)
+            hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
+            ylims!(ax,-1.5,1.5)
+            if cx+gx==2 ylabel!(ax,"$(labelstim[sx])\nstimulus proj") end
+            title!(ax,["","$(labelstim[cx]) context\n"][1 + (sx==1)]*["relevant","irrelevant"][rx]*" $(labelinstr[gx])" )
+        end
+    end
+    # for sx in 1:2
+    #     ax = axs[3+sx,5]
+    #     m = mean(SRPs[:,sx,:,:,timestamps], dims=(2,3))[:,1,1,:]
+    #     @info "$sx" m size(m)
+    #     plot!(ax, mean(m,dims=1)', ribbon=std(m,dims=1)'/sqrt(nmodels), color=colors[sx,1], lw=2, fillalpha=0.3)
+    #     ylims!(ax,-1.5,1.5)
+    # end
+    for dx in 5:7, sx in 1:2  plot!(axs[3+sx,dx], axis=false) end
+
+
+
+    display(axs)
+end
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1606,7 +1893,7 @@ function subspacesrnn(X, y, Ts, machineparameters)
         allmgg = zeros(nhidden,2)
         allmng = zeros(nhidden,2)
         
-        allCim = zeros(nhidden,2)
+        allCim = zeros(nhidden,4,2)             # four timepoints, go nogo
         allCign = zeros(nhidden,2)
         allCcm = zeros(nhidden,2)
         allCcgn = zeros(nhidden,2)
@@ -1618,8 +1905,13 @@ function subspacesrnn(X, y, Ts, machineparameters)
         DWhs = zeros(nmodels,nhidden,nhidden)
         DWos = zeros(nmodels,noutput,nhidden)
         Mis = zeros(nmodels,nhidden,2)
-        Cis = zeros(nmodels,nhidden,2)
-        Cims = zeros(nmodels,nhidden,2)
+        Cis = zeros(nmodels,nhidden,4,2)         # four timepoints, go nogo
+        Cims = zeros(nmodels,nhidden,4,2)         # four timepoints, go nogo
+        Ccms = zeros(nmodels,nhidden,2)
+        CRs = zeros(nmodels,2,ntimepoints,nhidden+1)
+        CRPs = zeros(nmodels,2,2,ntimepoints,3)    # context, gonogo, ...., (pre, at start, and at decision projections)
+        SRs = zeros(nmodels,2,2,nhidden)
+        SRPs = zeros(nmodels,2,2,2,ntimepoints)
         Dis = zeros(nmodels,nhidden,2)
         Ris = zeros(nmodels,nhidden,2)
         Rims = zeros(nmodels,nhidden,2)
@@ -1677,21 +1969,58 @@ function subspacesrnn(X, y, Ts, machineparameters)
 
             # get the index that shows the largest difference between contexts
             # in the last trial in incongruent trials, visual context is stronger: +, audio context is stronger: -
-            contextindex = zeros(nhidden,2)
-            for (mskx,maskdir) in enumerate((maskgo, .! maskgo))
-                contextindex[:,mskx] = dropdims(mean(
-                                H[end-Ts[end][end]+1:end, :, maskdir .&     maskcontext   .&  ( maskcongruency)] -
-                                H[end-Ts[end][end]+1:end, :, maskdir .& (.! maskcontext)  .&  ( maskcongruency)],
-                                            dims=(1,3)),dims=(1,3))
+            contextindex = zeros(nhidden,4,2)   # nhidden, timepoint: (pre, start, dec, all), go/nogo
+            # modeltimestampscontext = ntimepoints - Ts[end][end]  .+ vcat(Ts[begin],Ts[2][1:1])        # only off stimulus   # original: end-Ts[end][end]+1:end
+            # modeltimestampscontext = ntimepoints - Ts[end][end]  .+ vcat(Ts[2][1:1])        # only off stimulus   # original: end-Ts[end][end]+1:end
+            # modeltimestampscontext = ntimepoints - Ts[end][end]  .+ vcat(Ts[begin])        # only off stimulus   # original: end-Ts[end][end]+1:end
+            # modeltimestampscontext = vcat([  vcat(Ts[begin],Ts[end]) .+ (i-1)*Ts[end][end] for i in 1:sequencelength]...)
+            modeltimestampscontext = [ntimepoints - Ts[end][end]  .+ vcat(Ts[1]),
+                                      ntimepoints - Ts[end][end]  .+ vcat(Ts[2][1:1]),
+                                      ntimepoints - Ts[end][end]  .+ vcat(Ts[2][end:end]),
+                                      ntimepoints - Ts[end][end]  .+ vcat(Ts...) ]
+            for px in 1:4
+                for (mskx,maskdir) in enumerate((maskgo, .! maskgo))
+                    contextindex[:,px,mskx] = dropdims(mean(
+                                    H[modeltimestampscontext[px], :, maskdir  .&     maskcontext  ] -  # .&  ( maskcongruency)] -
+                                    H[modeltimestampscontext[px], :, maskdir  .& (.! maskcontext) ],      # .&  ( maskcongruency)],
+                                                dims=(1,3)),dims=(1,3))
+                end
             end
-            contextunits = sortperm(contextindex[:,1],rev=true)
+            # contextunits = sortperm(contextindex[:,2,1],rev=true)
 
             contextcoefs = zeros(nhidden,2)
-            Hp = Float64.(permutedims(H[end-Ts[end][end]+1:end,:,:],[3,1,2]))
+            Hp = Float64.(permutedims(H[modeltimestampscontext[2],:,:],[3,1,2]))
             for (mskx,maskdir) in enumerate((maskgo, .! maskgo))
                 _,accuracies,coefs = decodevariablefromactivity(Hp,Float64.(maskdir .& maskcontext))
-                contextcoefs[:,mskx] = dropdims(mean(coefs,dims=1),dims=1)[1:nhidden]
+                contextcoefs[:,mskx] = dropdims(mean(coefs,dims=1),dims=1)[1:nhidden,1]
             end
+
+            # continuous context representation
+            Hp = Float64.(permutedims(H,[3,1,2]))
+            for (ct,contextprojectiontimestamps) in enumerate([Ts[1],Ts[2][1:1],Ts[3][1:1]])         # pre   start    decision
+                for gx in 1:2                         # go   nogo
+                    maskdir = [maskgo, .! maskgo][gx]
+                    _,_,coefs = decodevariablefromactivity(Hp[maskdir,:,:], Float64.(maskcontext[maskdir]))
+                    CRs[mx,gx,:,:] = coefs[:,:,1]
+                    P = dropdims(mean(CRs[mx,gx,contextprojectiontimestamps,1:nhidden],dims=1),dims=1)
+                    for cx in 1:2         # contexts
+                        CRPs[mx,cx,gx,:,ct] = mean(projectontoaxis(Hp[maskdir .& [maskcontext, .! maskcontext][cx],:,:], P / norm(P)), dims=1)[1,:]
+                    end
+                end
+            end
+
+            # projections to visual and auditory cells
+            for sx in 1:2
+                for gx in 1:2
+                    SRs[mx,sx,gx,:] = Wi[:,[0,2][sx] + gx]
+                    P = SRs[mx,sx,gx,:]         # no timecourse for input weights
+                    for cx in 1:2
+                        SRPs[mx,sx,cx,gx,:] = mean(projectontoaxis(Hp[[maskcontext, .! maskcontext][cx] .& [maskgo, .! maskgo][gx],:,:], P / norm(P)), dims=1)[1,:]
+                    end
+                end
+            end
+
+
 
             # decision index
             decisionindex = [ Wo[1,:] Wo[2,:] ]
@@ -1712,7 +2041,7 @@ function subspacesrnn(X, y, Ts, machineparameters)
             # sort by modality prefrerence index
             Fmg = Wh[modalitygounits,modalitygounits]
             Fmn = Wh[modalitynogounits,modalitynogounits]
-            Cim = [contextindex[modalitygounits,1] contextindex[modalitynogounits,2]]     #  go index in modality goorder
+            Cim = cat(contextindex[modalitygounits,:,1], contextindex[modalitynogounits,:,2],dims=3)     #  go index in modality goorder
             Ccm = [contextcoefs[modalitygounits,1] contextcoefs[modalitynogounits,2]] ./ maximum(contextcoefs,dims=1)
             Rim = [ rewardindex[modalitygounits,1] rewardindex[modalitynogounits,2]]
             
@@ -1721,9 +2050,10 @@ function subspacesrnn(X, y, Ts, machineparameters)
             DWis[mx,:,:] = Wi
             DWhs[mx,:,:] = Wh
             DWos[mx,:,:] = Wo
-            Cims[mx,:,:] = Cim
+            Cims[mx,:,:,:] = Cim
+            Ccms[mx,:,:] = Ccm
             Mis[mx,:,:] = modalitiesindex
-            Cis[mx,:,:] = contextindex
+            Cis[mx,:,:,:] = contextindex
             Dis[mx,:,:] = decisionindex
             Ris[mx,:,:] = rewardindex
             Rims[mx,:,:] = Rim
@@ -1750,7 +2080,10 @@ function subspacesrnn(X, y, Ts, machineparameters)
             abstractcells, performances, allFgo, allFnogo, allFmg, allFmn, allmgg, allmng, allCim, allCign, allCcm, allCcgn)
 
         @save( joinpath(config[:modelanalysispath],  "suppression", "subspaces-rnn.bson"),
-              Fmgs, Fmns,  Mis, Cis, Dis, Ris, Cims, Rims, DWis, DWhs, DWos, Rigns, validmodels)
+              Fmgs, Fmns,  Mis, Cis, Dis, Ris, Cims, Ccms, Rims, DWis, DWhs, DWos, Rigns, validmodels)
+
+        @save( joinpath(config[:modelanalysispath],  "contextrepresentation", "contextprojections-rnn.bson"), CRs, CRPs, SRs, SRPs, validmodels)
+        
 
     else
 

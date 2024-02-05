@@ -13,7 +13,7 @@ using Random: randperm, shuffle
 using Distributions
 using StatsBase
 using MultivariateStats
-using HypothesisTests: OneSampleTTest, pvalue
+using HypothesisTests: OneSampleTTest, UnequalVarianceTTest, pvalue
 using Flux: onehot, onehotbatch, onecold
 
 
@@ -44,7 +44,6 @@ using .NeuroscienceCommon.AI
 include("options.jl")
 
 include("preprocess.jl")
-include("physiology.jl")
 include("subspaces.jl")
 include("nnmodels.jl")
 include("figures.jl")
@@ -80,6 +79,11 @@ function main()
             end
         end
 
+    elseif commandlineoptions[:_COMMAND_]==:behaviour
+        mouseids = collectsubjectids("ACC")
+        generatemovingaveragestatistics(mouseids)
+        calculatemovingaveragestatistics(mouseids)
+        calculatebehaviouralmodelstatistics(mouseids)
 
 
     elseif commandlineoptions[:_COMMAND_]==:chancelevelshuffle
@@ -94,6 +98,14 @@ function main()
         for mouseid in mouseids
             nwbfile,_ = loadnwbdata(mouseid)
             decodevariables(mouseid,nwbfile)
+        end
+
+    elseif commandlineoptions[:_COMMAND_]==:choicegeometry
+        mouseids = collectsubjectids("ACC")
+        for mouseid in mouseids
+            nwbfile,_ = loadnwbdata(mouseid)
+            choicegeometry(mouseid,nwbfile)
+            predictivechoicegeometry(mouseid,nwbfile)
         end
 
     elseif commandlineoptions[:_COMMAND_]==:lowdimortho
@@ -125,6 +137,8 @@ function main()
         mouseids = parsesubjectids()
         for mouseid in mouseids
             suppressionbehaviour(mouseid)
+            suppressionbehaviour(mouseid, "lick")        # lick control
+            suppressionbehaviour(mouseid, "nolick")
         end
 
     elseif commandlineoptions[:_COMMAND_]==:projectcontext
@@ -146,8 +160,12 @@ function main()
             conditionaveragepca(config[:sessions][mouseid],nwbfile)
         end
 
-
-
+    elseif commandlineoptions[:_COMMAND_]==:predictneurons
+        mouseids = collectsubjectids("ACC")
+        for mouseid in mouseids
+            nwbfile,io = loadnwbdata(mouseid)
+            predictneurons(mouseid,nwbfile,consistentonly=false)
+        end
 
     elseif commandlineoptions[:_COMMAND_]==:rnn
         machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
@@ -188,6 +206,15 @@ function main()
         @info "investigating context inference by reward"
         contextinferencernn(data..., Ts, machineparameters)
 
+    elseif commandlineoptions[:_COMMAND_]==:rnnortho
+        machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
+        analysernnortho(machineparameters)
+
+    elseif commandlineoptions[:_COMMAND_]==:rnncontextrepresentation
+        machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
+        Ts = [1:3,4:9,10:12,13:15]
+        data = generatetimecoursebehaviour(S=machineparameters[:nsequence], Ts=Ts; incongruentonly=false, addcontext=false, onehot=true)
+        contextrepresentation(data..., Ts, machineparameters)
     
     elseif commandlineoptions[:_COMMAND_]==:rnntracesuppression
         machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
@@ -225,6 +252,14 @@ function main()
             figure4()
         elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("5")
             figure5()
+        elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("S1")
+            supplementaryfigure1()
+        elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("S2")
+            supplementaryfigure2()
+        elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("S3")
+            supplementaryfigure3()
+        elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("stats")
+            statshelper()
         end
         theme(:darkscience)
     end

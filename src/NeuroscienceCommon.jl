@@ -4,14 +4,14 @@ module NeuroscienceCommon
     
 
 
-include("common/nwbwrap.jl")
-include("common/mathutils.jl")
+include("nwbwrap.jl")
+include("mathutils.jl")
 
-include("common/electrophysiology.jl")
-include("common/ai.jl")
-include("common/discover.jl")
+include("electrophysiology.jl")
+include("ai.jl")
+include("discover.jl")
 
-include("common/figs.jl")
+include("figs.jl")
 
 
 end

@@ -1,7 +1,7 @@
 __precompile__()
 module Figs
 
-export @plotdecoder, @decoderbackground
+export @plotdecoder, @decoderbackground, @nolinebackground
 export invisibleaxis!
 export @addmargins, @panellabel, @panellabels, @gridoff
 export rectangle
@@ -73,6 +73,16 @@ macro decoderbackground(axs,tstarts,tends,tvert,bg=:black)
     end
 end
 
+macro nolinebackground(axs,tstarts,tends,tvert,bg=:black)
+    quote
+        for k in 1:length($(esc(tstarts)))
+            vspan!($(esc(axs)),[$(esc(tstarts))[k],$(esc(tends))[k]], color=:grey, alpha=0.3, label=nothing)
+        end
+        if $(esc(bg))!=nothing
+            vline!($(esc(axs)),[$(esc(tvert))], color=$(esc(bg)), lw=2, alpha=0.5, label=nothing)
+        end
+    end
+end
 
 
 

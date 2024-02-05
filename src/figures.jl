@@ -1,6 +1,7 @@
 # make figures
 const lowprob = config[:behaviouralmodellowprob]
 const cm = cgrad([:red, :white, :green],[0,0.4,0.6,1])
+const dpi = config[:figuredpi]
 
 function figure1()
     figurepostfix = "paradigms,behavior"
@@ -9,7 +10,7 @@ function figure1()
     mouseids = collectsubjectids("ACC")
     nmice = length(mouseids)
     
-    axs = plot(layout=@layout( [ a b{0.3w}; c d{0.3w} ] ), size=(3*300, 2*300), dpi=600, legend=false)
+    axs = plot(layout=@layout( [ a b{0.3w}; c{0.66h} d{0.3w} ] ), size=(3*300, 5*300÷2), dpi=dpi, legend=false)
 
 
 
@@ -25,7 +26,7 @@ function figure1()
     xlims!(ax, 0,1320)          # 1320  x 495
     ylims!(ax, 0,495)
     plot!(ax, xticks=false, yticks=false, axis=false)
-    @panellabel ax "A" -0.07 -0.18
+    @panellabel ax "A" -0.12 -0.18
 
     
 
@@ -60,7 +61,7 @@ function figure1()
     plot!(ax, axis=false, left_margin=30*Plots.px)
     
     mouseid = :AC006
-    labels = ["go congruent" "go incongruent"; "nogo congruent" "nogo incongruent"]
+    labels = ["─── go congruent" "- - go incongruent"; "── nogo congruent" "- - nogo incongruent"]
     nwbfile,_ = loadnwbdata(mouseid)
     triallist = nwbdf(nwbfile.trials)
     filter!(:difficulty=>u->u=="complex",triallist)
@@ -72,7 +73,7 @@ function figure1()
     choices = choicesselected(triallist)
     for sx in 1:2, congi in 1:2
         ix = (sx-1)*2+congi
-        plot!(ax, inset_subplots=(3, bbox(0, 1-ix*0.22, 1, 0.18, :bottom, :left)))
+        plot!(axs[3], inset_subplots=(3, bbox(0, 1-ix*0.22, 1, 0.18, :bottom, :left)))
         ax = axs[4+ix]
         for cx in 1:2         # contexts
             if sx+congi==2 annotate!(ax, sum(boundaries[cx,1]),1.1, text(["visual","auditory"][cx]*"\ncontext",[:navy,:darkgreen][cx],:left, :bottom, 8)) end
@@ -96,10 +97,11 @@ function figure1()
         # plot!(ax, ytickfonthalign=:left, xtickfontvalign=:bottom)
         hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
         # vline!(ax, [contextboundary-0.5], color=:grey, label=nothing)
+        ylabel!(ax, "performance", ylabelfontsize=6)
     end
-    plot!(inset_subplots=(3, bbox(0, 0, 1, 0.06, :bottom, :left)))
+    
+    plot!(axs[3], inset_subplots=(3, bbox(0, 0, 1, 0.06, :bottom, :left)))
     ax = axs[9]
-
     bar!(ax, .! highperfs, color=:darkorange, linecolor=:darkorange, label=nothing)
     bar!(ax,    highperfs, color=:purple,     linecolor=:purple,     label=nothing)
     # vline!(ax, [contextboundary-0.5], color=:grey, label=nothing)
@@ -111,102 +113,146 @@ function figure1()
     plot!(ax, yaxis=false)
     plot!(ax, bottom_margin=20*Plots.px)
     
-    @panellabel axs[3] "C" -0.07 1.1
+    @panellabel axs[3] "C" -0.12 1.02
 
 
     
 
 
+    # ax = axs[4] # probabilities of sequence lengths
+    # # axsp = plot(layout=(2,1))
+
+
+    # # load a dict of repeated probability simulations by mouseid containing a dict for each context
+    # # load mouse consecutive consistent blocks numbers
+    # mouseids = collectsubjectids("ACC")
+    # # mouseid = :AC006
+    # @load(joinpath(config[:cachepath], "behaviour", "probabilityconsistentperiods.bson"), @__MODULE__, probabilityconsistentperiods)
+    # @load(joinpath(config[:cachepath], "behaviour", "movingaveragestatistics,mice.bson"), @__MODULE__, consecutivesegmentsmice)
+
+    # markershapes = [:circle,:square,:diamond,:utriangle]
+
+    # for (n,mouseid) in enumerate(mouseids)
+
+    #     numconsistent = sum.(consecutivesegmentsmice[mouseid])
+    #     conseqconsistent = maximum.(consecutivesegmentsmice[mouseid])
+
+    #     # find the less likely context, and restrict display to that context
+    #     lesslikelycontextid = argmin(numconsistent)
+    #     context = ["visual","audio"][lesslikelycontextid]
+    #     @info "$mouseid" numconsistent lesslikelycontextid context p=probabilityconsistentperiods[mouseid][context][:pchoicebias]
+    #     ntrials = probabilityconsistentperiods[mouseid][context][:ntrials]
+    #     prob_ntrials_successes = probabilityconsistentperiods[mouseid][context][:prob_ntrials_successes] 
+    #     prob_atleastone_consecutive_length = probabilityconsistentperiods[mouseid][context][:prob_atleastone_consecutive_length]
+
+
+    #     # sizes: prob_ntrials_successes: (ntrials), prob_atleastone_consecutive_length: (ntrials, conseucive length)
+    #     prob_ntrials_successes[prob_ntrials_successes.==0] .= 0.5/config[:generativeconsecutivesamplingrepeats]
+    #     prob_atleastone_consecutive_length[prob_atleastone_consecutive_length.==0] .= 0.5/config[:generativeconsecutivesamplingrepeats]
+
+    #     plot!(ax, prob_ntrials_successes, color=:dodgerblue, yscale=:log10, alpha=0.5)
+    #     plot!(ax, prob_atleastone_consecutive_length, color=:purple, alpha=0.5)
+    #     xlims!(ax, 0, 28)
+    #     ylims!(ax, 1e-6, 5e-2)
+
+
+    #     scatter!(ax, [numconsistent[lesslikelycontextid]], [prob_ntrials_successes[numconsistent[lesslikelycontextid]]],
+    #                 markercolor=:dodgerblue, markerstrokewidth=0, markershape=markershapes[n], alpha=0.8)
+    #     scatter!(ax, [conseqconsistent[lesslikelycontextid]], [prob_atleastone_consecutive_length[conseqconsistent[lesslikelycontextid]]],
+    #                 markercolor=:purple, markerstrokewidth=0, markershape=markershapes[n], alpha=0.8)
+
+    # end
+
+    # @panellabel ax "D" -0.20 3
+
+    
+
+
     ax = axs[4]
+    plot!(ax, axis=false, left_margin=40*Plots.px, right_margin=105*Plots.px, top_margin=40*Plots.px)
+    axsslot = 4
+    axendstack = 9
     colors = [:navy :darkgreen]
-    plot!(ax, axis=false, right_margin=105*Plots.px)
-    nhighperfs = zeros(nmice,2)
-    fractioncorrects = zeros(nmice,2)
-    lls = zeros(nmice,2,5) # loglikelihoods (nmice, context, models)
-    for (n,mouseid) in enumerate(mouseids)
-        nwbfile,_ = loadnwbdata(mouseid)
-        triallist = nwbdf(nwbfile.trials)
-        filter!(:difficulty=>u->u=="complex",triallist)
-        addcongruencycolumn!(triallist)
-        maperfs = movingaverageperformancetrialtypes(triallist)
-        highperfs = highperformancetrialsmask(maperfs)
-        contextboundary = findfirst(triallist[!,:context].==triallist[end,:context])
-        boundaries = [1 contextboundary-1; contextboundary nrow(triallist)]
-        for (cx,context) in enumerate(["visual","audio"])
-            maskhp = (triallist[!,:context].==context) .&  highperfs 
-            maskhpic =  maskhp .&  (triallist[!,:congruency].=="incongruent")
 
-            # number of consistent trials
-            nhighperfs[n,cx] = sum(maskhp)
-            
-            # fraction correct
-            fractioncorrects[n,cx] = sum(triallist[maskhp,:success])/nhighperfs[n,cx]
+    @load(joinpath(config[:cachepath], "behaviour","behaviouralstatistics.bson"), @__MODULE__, ntrials, nhighperfs, fractioncorrects, lls)
 
-            # models; need choices data, and model p estimates
-            choices = triallist[maskhpic, :action]
-            # zero parameter context opposite
-            targets = triallist[maskhpic, [:degree,:freq][3-cx]] .==  [45,5000][3-cx]   # opposite
-            p = clamp.(.! targets, lowprob, 1-lowprob)
-            lls[n,cx,1] = mean(bernoulliloglikelihood(choices,p))
+    @info "% hp tr" perchp = nhighperfs ./ ntrials
 
-            # zero parameter context aware
-            targets = triallist[maskhpic, [:degree,:freq][cx]] .==  [45,5000][cx]   # same
-            p = clamp.(.! targets, lowprob, 1-lowprob)
-            lls[n,cx,2] = mean(bernoulliloglikelihood(choices,p))
-             
-            # one parameter mean bias
-            lls[n,cx,3] = mean(bernoulliloglikelihood(choices,mean(choices)))
-            
-            # one parameter bias, based on the targets from context aware
-            targets = triallist[maskhpic, :water]    # go or nogo contextual
-            p = [modelbias(targets,β) for β in -1+2*lowprob:lowprob*2:1-lowprob]
-            clamp!.(p, lowprob, 1-lowprob)
-            llsbias = dropdims(mean(hcat([bernoulliloglikelihood.(choices,pix) for pix in p]...),dims=1),dims=1)
-            lls[n,cx,4] = maximum(llsbias)
-            # βm = (-1+2*lowprob:lowprob*2:1-lowprob)[argmax(llsbias)]
-            
-            # one parameter lapse
-            targets = triallist[maskhpic, :water]    # go or nogo contextual
-            p = [modellapse(targets,λ) for λ in lowprob:lowprob:1-lowprob]
-            clamp!.(p, lowprob, 1-lowprob)
-            llslapse = dropdims(mean(hcat([bernoulliloglikelihood.(choices,pix) for pix in p]...),dims=1),dims=1)
-            lls[n,cx,5] = maximum(llslapse)
-            # λm = (lowprob:lowprob:1-lowprob)[argmax(llslapse)]
-
-            # @info "" mouseid context lls[n,cx,1:2] lls[n,cx,3:5] βm λm
-            # display(plot([-1+2*lowprob:lowprob*2:1-lowprob lowprob:lowprob:1-lowprob],[llsbias llslapse], label=["bias" "lapse"], lw=2, title="$mouseid $context"))
-
-        end
-    end
-
-    if nmice>4 
-        @info "lls NaN" sum(isnan.(lls))
-        lls = lls[1:4,:,:]
-        # replace!(lls, NaN=>missing)
-        # @info "corrected" sum(ismissing.(lls))
-    end
-
-    ix = 1
-    plot!(axs[4], inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[9+ix]
+    ix = 1 # number of high performance trials
+    plot!(axs[axsslot], inset_subplots=(axsslot, bbox(0.1, 1-ix*0.20, 1, 0.18, :bottom, :left)))
+    ax = axs[axendstack+ix]
     bar!(ax, (1:nmice).+[-0.165 +0.165 ], nhighperfs, bar_width=0.33, color=colors, linecolor=colors, label=nothing)
     xlims!(ax, 0, nmice+1)
     ylims!(ax, 0, 35)
     plot!(ax, xticks=false, yticks=[0,10,20,30], ytickfontsize=6, ylabel="number\nof trials", ylabelfontsize=7, yguidehalign=:left)
     annotate!(ax, 1.5, 42, text("visual context", :navy, :left, 6))
     annotate!(ax, 1.5, 36, text("auditory context", :darkgreen, :left, 6))
+    @panellabel ax "D" -0.40 1.15
 
-    ix = 2
-    plot!(axs[4],inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[9+ix]
+
+
+
+    ix = 2    # probability of consistent trials by chance
+    @load(joinpath(config[:cachepath], "behaviour", "probabilityconsistentperiods,incongruentbias.bson"), @__MODULE__, probabilityconsistentperiods)
+    @load(joinpath(config[:cachepath], "behaviour", "movingaveragestatistics,mice.bson"), @__MODULE__, consecutivesegmentsmice)
+
+    plot!(axs[axsslot], inset_subplots=(axsslot, bbox(0.1, 1-ix*0.20, 1, 0.18, :bottom, :left)))
+    ax = axs[axendstack+ix]
+
+    prob_numconsistents = zeros(nmice,2)
+    prob_conseqconsistents = zeros(nmice,2)
+
+    for (n,mouseid) in enumerate(mouseids)
+
+        numconsistent = sum.(consecutivesegmentsmice[mouseid])
+        conseqconsistent = maximum.(consecutivesegmentsmice[mouseid])
+
+        
+        # find the less likely context, and restrict display to that context
+        for (cx,context) in enumerate(["visual","audio"])
+
+            # @info "$mouseid $context" numconsistent cx context p=probabilityconsistentperiods[mouseid][context][:pchoicebias]
+            ntrials = probabilityconsistentperiods[mouseid][context][:ntrials]
+            prob_ntrials_successes = probabilityconsistentperiods[mouseid][context][:prob_ntrials_successes] 
+            prob_atleastone_consecutive_length = probabilityconsistentperiods[mouseid][context][:prob_atleastone_consecutive_length]
+
+            prob_ntrials_successes[prob_ntrials_successes.==0] .= 0.5/config[:generativeconsecutivesamplingrepeats]
+            prob_atleastone_consecutive_length[prob_atleastone_consecutive_length.==0] .= 0.5/config[:generativeconsecutivesamplingrepeats]
+
+            # ["num. of consistent", "at least conseq. consist."]
+            
+
+            prob_numconsistents[n,cx] = prob_ntrials_successes[numconsistent[cx]]
+            prob_conseqconsistents[n,cx] = prob_atleastone_consecutive_length[conseqconsistent[cx]]
+        end
+    end
+    @info "" prob_numconsistents log10.(prob_numconsistents)
+    bar!(ax, (1:nmice).+[-0.165 +0.165 ], log10.(prob_numconsistents), bar_width=0.33, color=colors, linecolor=colors, label=nothing)
+    hline!(ax, [log10(0.05)], lw=1, color=:grey, ls=:dash, label=nothing)
+    xlims!(ax, 0, nmice+1)
+    # ylims!(ax, 0, 35)
+    plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="log probab. of\nconsist. by chance", ylabelfontsize=6, yguidehalign=:left)
+    @panellabel ax "E" -0.40 0.95
+
+
+
+
+    ix = 3 # fraction correct trials
+    plot!(axs[axsslot],inset_subplots=(axsslot, bbox(0.1, 1-ix*0.20, 1, 0.18, :bottom, :left)))
+    ax = axs[axendstack+ix]
     bar!(ax, (1:nmice).+[-0.165 +0.165 ], fractioncorrects, bar_width=0.33,  color=colors, linecolor=colors, label=nothing)
     xlims!(ax, 0, nmice+1)
     ylims!(ax, 0, 1.05)
     plot!(ax, xticks=false, yticks=[0,1], ytickfontsize=6, ylabel="fraction\ncorrect", ylabelfontsize=7, yguidehalign=:left)
+    @panellabel ax "F" -0.40 0.95
 
-    ix = 3
-    plot!(axs[4],inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[9+ix]
+
+
+
+
+    ix = 4 # lls 1/2   # models 1
+    plot!(axs[axsslot],inset_subplots=(axsslot, bbox(0.1, 1-ix*0.20, 1, 0.18, :bottom, :left)))
+    ax = axs[axendstack+ix]
     bar!(ax, (1:nmice).+range(-0.3,0.3,length=4)', reshape(permutedims(lls[:,:,1:2],(1,3,2)),:,4), bar_width=0.15, 
            color=[:white colors[1] :white colors[2]], linecolor=[colors[1] colors[1] colors[2] colors[2]], label=nothing)
     xlims!(ax, 0, nmice+1)
@@ -221,17 +267,18 @@ function figure1()
             annotate!(ax,nmice+0.5+2*wh,-4.50-hh*(mx-1)+hh/2,text([" context opposite"," context aware"][mx],:vcenter,:left,6))
         end
     end
+    @panellabel ax "G" -0.40 0.95
 
 
-    ix = 4
-    plot!(axs[4], inset_subplots=(4, bbox(0.1, 1-ix*0.25, 1, 0.23, :bottom, :left)))
-    ax = axs[9+ix]
+    ix = 5 # lls 2/2       # models 2
+    plot!(axs[axsslot], inset_subplots=(axsslot, bbox(0.1, 1-ix*0.20, 1, 0.18, :bottom, :left)))
+    ax = axs[axendstack+ix]
     colorlist = [colors[1] colors[1] colors[1] colors[2] colors[2] colors[2]]
     bar!(ax, (1:nmice).+range(-0.30,0.30,length=6)', reshape(permutedims(lls[:,:,3:5],(1,3,2)),:,6), bar_width=0.10, 
            color=colorlist, linecolor=colorlist, alpha=[0.3 0.6 1 0.3 0.6 1], label=nothing)
     xlims!(ax, 0, nmice+1)
     ylims!(ax, -0.85, 0.05)
-    plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="model log\nlikelihood", ylabelfontsize=6, yguidehalign=:left)
+    plot!(ax, xticks=false, ytickfontsize=6, ylabel="model log\nlikelihood", ylabelfontsize=6, yguidehalign=:left)
     # legend
     wh = 0.2; hh = 0.19/1.2*8.5/10
     for (mx,m) in enumerate([3,4,5]), cx in 1:2
@@ -241,9 +288,15 @@ function figure1()
                                                           :vcenter,:left,6))
         end
     end
+    @panellabel ax "H" -0.40 0.95
 
 
-    @panellabel axs[4] "D" -0.15 1.1
+
+        
+
+
+
+
 
 
     
@@ -280,18 +333,147 @@ function figure2()
     @info "making figure 2" figurepostfix
 
 
-
-    axs = plot(layout=@layout([[a b c d; e f g h] i{0.2w} ]),size=(5*350, 2*300), legend=false, dpi=600,
+    l = @layout(  [  [ x    y;
+                      u  v  w  z];
+                     [[a b c d;
+                       e f g h]  i{0.2w}]]      )
+    
+    axs = plot(layout=l, size=(5*350, 4*350), legend=false, dpi=dpi,
                left_margin=20*Plots.px, bottom_margin=15*Plots.px, top_margin=20*Plots.px, right_margin=20*Plots.px)
 
 
+
+
+
+    # spikes and firing rate blocks
+
+
+
+    mouseids = collectsubjectids("ACC")
+    nmice = length(mouseids)
+    mouseid = mouseids[4]
+
+    @info "mouseid" mouseid
+    nwbfile,_ = loadnwbdata(mouseid)
+    triallist = nwbdf(nwbfile.trials)
+    filter!(:difficulty=>u->u=="complex",triallist)
+    addcongruencycolumn!(triallist)
+
+
+
+
+    neuronsspiketimeslist = gettrialrelativespiketimes(triallist, nwbfile.units)         # get spikes for trials
+    ntrials = length(neuronsspiketimeslist)
+    nneurons = length(neuronsspiketimeslist[1])
+    trialwidth = config[:stimuluslength] + abs(config[:preeventpadding]) + abs(config[:posteventpadding])
+
+
+    # selecting the neurons to display
+    rastertriallist = [30:35,82:87]      # visual and auditory example trials
+
+    @load(joinpath(config[:cachepath],"subspace/","mutualswitchsubspaces-$(string(mouseid)).bson"),  @__MODULE__,
+            modalityunitssingle, modalityindexsingle, contextindex)
+
+            
+    # modalityindex = modalityindexsingle[:,1] - modalityindexsingle[:,2]
+    modalityorder = [sortperm(modalityindexsingle[:,g]) for g in 1:2 ]
+    ncellneighbours = 10
+    bestvisualcells = [modalityorder[1][1:1+ncellneighbours-1], modalityorder[2][1:1+ncellneighbours-1]]         # go and nogo best
+    bestaudiocells = [modalityorder[1][end-ncellneighbours+1:end], modalityorder[2][end-ncellneighbours+1:end]]
+    selectedcells = [bestvisualcells[2][1] bestvisualcells[1][2]; bestaudiocells[1][6] bestaudiocells[2][3]]          # stim × gonogo
+
+    
+
+
+    
+    # raster
+    for (cx,context) in enumerate(("visual","audio"))
+        ax = axs[cx]
+        for (tr,trial) in enumerate(rastertriallist[cx])
+            for n in 1:nneurons
+                # order neurons by goorder
+                scatter!(ax, neuronsspiketimeslist[trial][n] .+ (tr-1)*trialwidth,
+                            repeat([n], length(neuronsspiketimeslist[trial][n])), 
+                            marker = (:vline, 3, :red), markersize = 0.5, markerstrokewidth=0.1)
+            end
+            @nolinebackground(ax, config[:stimulusstart]+(tr-1)*trialwidth, config[:stimulusend]+(tr-1)*trialwidth,
+                                   config[:waterstart]+(tr-1)*trialwidth, bg=:darkgrey)
+            visstim = (Int(triallist[trial,:degree]))
+            audstim = (Int(triallist[trial,:freq]/1000))
+            annotate!(ax,(tr-1)*trialwidth+trialwidth/2,nneurons+2,text("$(visstim)° $(audstim)kHz ",9,:black,:hcenter,:bottom))
+        end
+        xlabel!(ax, "time [s]")
+        ylabel!(ax,"cell id")
+        annotate!(ax,-2.5,nneurons+2,text("$context context",10,[:blue,:green][cx],:hcenter,:bottom))
+        # annotate specific cells in next subplots
+        yticks!(ax,(vcat([10,20],selectedcells[:]), vcat(string.([10,20]),["c","d","e","f"])))
+        plot!(ax,top_margin=60*Plots.px, left_margin=40*Plots.px)
+        @panellabel ax ["A","B"][cx] -0.10 1.18
+    end
+
+
+    colorcondition = [:dodgerblue :navy; :lime :darkgreen]
+    alphacondition = [1.0 1.0]   # go nogo
+    lscondition = [:solid :dash]
+    sm = 31
+    labelrelevance = ["relevant","irrelevant"]
+    labelstimulus = ["visual","auditory"]
+    labelgonogo = [" 45°" "135°"; " 5kHz" "10kHz"]
+    for ix in 1:2     # cells within sensitivity groups
+        for clx in 1:2      # vis sensitive cell, audio sensitive cell
+            cell = selectedcells[clx,ix]
+            gx = ix   # match cell sensitivity to stimulus class
+
+            ax = axs[2+(clx-1)*2+ix]
+
+            @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:darkgrey)
+
+            for rx in 1:2
+                cx = 2 - (clx==rx) # context index
+                context = ("visual","audio")[cx]
+
+                mask = (triallist[!,:context].==context) .& (triallist[!,[:degree,:freq][clx]].==[[45,135],[5000,10000]][clx][gx])
+
+                ts, ifr = smoothinstantenousfiringrate(neuronsspiketimeslist[mask], config[:stimuluslength], binsize=config[:dt])
+                
+                m = @movingaverage(mean(ifr[:,:,cell],dims=1)[1,:], sm)
+                e = @movingaverage(std(ifr[:,:,cell],dims=1)[1,:]./sqrt(sum(mask)), sm)
+
+                plot!(ax, ts, m, ribbon=e, color=colorcondition[clx,rx], lw=3, ls=lscondition[gx], alpha=alphacondition[gx], fillalpha=0.2*alphacondition[gx],
+                    label="$(labelstimulus[clx]) stim. $(labelgonogo[clx,gx]) $(labelrelevance[rx]) ($context context)")
+                
+            end
+            ylims!(ax,([[0,49],[0,69],[0,79],[0,13]][(clx-1)*2+ix])...)
+            # yticks!(ax,0:20:max(ylim()))
+            if ix+clx==2 ylabel!(ax, "firing rate [Hz]") end
+            xlabel!(ax, "time from stimulus onset [s]")
+            @panellabel ax ["C","D","E","F"][(clx-1)*2+ix] (-0.16,-0.21)[1+(ix+clx==2)] 1.06
+            plot!(ax, legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8)
+            plot!(ax,top_margin=40*Plots.px, bottom_margin=40*Plots.px)
+        end
+    end
+
+    frblax = 6
 
 
     
 
 
 
-    # panels first 2×2 blocks
+
+
+
+
+
+
+
+
+
+    # decoding blocks
+
+
+
+    # panels first 2×2 decoding blocks
     # mice suppression
 
     
@@ -323,7 +505,7 @@ function figure2()
     sm = 31 # smoothing window
     for (bx,mouseind) in enumerate((mousev1ind,mouseaccind))
         for (stimulusindex,stimulus) in enumerate(labelsstimulus)
-            ax = axs[(stimulusindex-1)*4+bx] # axs[stimulusindex,bx]
+            ax = axs[frblax+(stimulusindex-1)*4+bx] # axs[stimulusindex,bx]
             @decoderbackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
             for contextindex in ([2,1],[1,2])[stimulusindex]
                 context = labelscontexts[contextindex]
@@ -338,8 +520,10 @@ function figure2()
             xlims!(ax,-1.2,4.2)
             ylims!(ax,0.45,1.05)
             plot!(ax,legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
-            title!(ax, [["V1\n","ACC\n"][bx],""][stimulusindex]*stimulus*" stimulus")
-            if stimulusindex==1 @panellabel ax ["A","B"][bx] -0.25 1.15 end
+            title!(ax, [["V1\n","ACC\n"][bx],""][stimulusindex]*stimulus*" stimulus",  titlefont=font(12))
+            if stimulusindex==1
+                @panellabel ax ["G","H"][bx] -0.30 1.20
+            end
         end
     end
 
@@ -384,7 +568,7 @@ function figure2()
         push!(accuraciesallareas, accuraciesall)
 
         for sx in 1:2        # stimulus modalities
-            ax = axs[(sx-1)*4+2+mx]
+            ax = axs[frblax+(sx-1)*4+2+mx]
             vspan!(ax,[config[:stimulusstart],config[:stimulusend]], color=:grey, alpha=0.3, label=nothing)
             vline!(ax,[config[:waterstart]],color=:white, alpha=0.5, lw=2, label=nothing)
             hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
@@ -405,10 +589,10 @@ function figure2()
             ylims!(ax,0.3,1.25)
             yticks!(ax,0.5:0.25:1)
             if mx==1 ylabel!(ax, "accuracy"); plot!(ax,left_margin=50*Plots.px) end
-            title!(ax, ["$(brainarea)\n",""][sx]*labelsstimulus[sx]*" stimulus")
+            title!(ax, ["$(brainarea)\n",""][sx]*labelsstimulus[sx]*" stimulus",  titlefont=font(12))
             if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
             plot!(ax, bottom_margin=40*Plots.px)
-            if sx==1 @panellabel ax ["C","D"][mx] -0.25 1.15 end
+            if sx==1 @panellabel ax ["I","J"][mx] -0.30 1.20 end
         end
     end
 
@@ -416,7 +600,7 @@ function figure2()
 
 
 
-    ax = axs[9]
+    ax = axs[frblax+9]
     colors = [ :purple :darkorange ]     # brainarea × consistency
     # create the difference between relevant and irrelevant projections
     # accuraciesallareas is a (narea)(nmice,nstates,nmodalities,nrelevancies,ntimestamps,3)
@@ -469,7 +653,7 @@ function figure2()
     # title!(ax,"mouse")
     ylabel!(ax, "accuracy difference\nrelevant - irrelevant")
 
-    @panellabel ax "E" -0.08 1.055
+    @panellabel ax "K" -0.30 1.08
 
 
 
@@ -510,7 +694,7 @@ function figure3()
 
 
     
-    axs = plot(layout=(2,3), size=(3*350, 2*300), dpi=600, bottom_margin=20*Plots.px, left_margin=20*Plots.px, grid=false, legend=false)
+    axs = plot(layout=(2,3), size=(3*350, 2*300), dpi=dpi, bottom_margin=20*Plots.px, left_margin=20*Plots.px, grid=false, legend=false)
 
 
 
@@ -691,7 +875,7 @@ function figure3()
     
 
     ax = axs[2,2]
-    scatter!(ax, angles[:,1,2], micercoords, color=:darkcyan, markerstrokewidth=0, label="visual ⋅ auditory, p=$(round(ps[1],digits=2))")
+    scatter!(ax, angles[:,1,2], micercoords, color=:darkcyan, markerstrokewidth=0, label="visual - auditory, p=$(round(ps[1],digits=2))")
     vline!(ax, [90], color=:grey, ls=:dash,label=nothing)
     xlims!(ax, 0, 180)
     ylims!(ax,0,15)
@@ -699,9 +883,9 @@ function figure3()
     xlabel!(ax, "angle between DVs [°]")
 
     ax = axs[2,3]
-    scatter!(ax, angles[:,1,3], micercoords.+1, color=:purple, markerstrokewidth=0, label="context ⋅ visual, p=$(round(ps[2],digits=2))")
-    scatter!(ax, angles[:,2,3], micercoords, color=:olive,  markerstrokewidth=0, label="context ⋅ auditory, p=$(round(ps[3],digits=2))")
-    scatter!(ax, angles[:,3,4], micercoords.-1, color=:darkgoldenrod,  markerstrokewidth=0, label="context ⋅ decision, p=$(round(ps[4],digits=2))")
+    scatter!(ax, angles[:,1,3], micercoords.+1, color=:purple, markerstrokewidth=0, label="context - visual, p=$(round(ps[2],digits=2))")
+    scatter!(ax, angles[:,2,3], micercoords, color=:olive,  markerstrokewidth=0, label="context - auditory, p=$(round(ps[3],digits=2))")
+    scatter!(ax, angles[:,3,4], micercoords.-1, color=:darkgoldenrod,  markerstrokewidth=0, label="context - decision, p=$(round(ps[4],digits=2))")
     vline!(ax, [90], color=:grey, ls=:dash,label=nothing)
     xlims!(ax, 0, 180)
     ylims!(ax,0,15)
@@ -747,9 +931,17 @@ function figure4()
     @info "making figure4" figurepostfix
 
 
-    axs = plot(layout=@layout(  [ a b c{0.5w}; d e f g ] ), size=(4*350, 2*350), dpi=600,
+    axs = plot(layout=@layout(  [ a b c{0.5w}; d{0.22w} e{0.1w} f{0.1w} g h; i j k{0.5w}] ), size=(4*350, 3*350), dpi=dpi,
                bottom_margin=20*Plots.px, left_margin=40*Plots.px, grid=false, legend=false)
     
+    # [a b c{0.5w}]          heights=[1/3,1/3,1/3])
+    # axs = plot(layout=(4,3), size=(3*350, 4*300), dpi=dpi,
+    #            bottom_margin=20*Plots.px, left_margin=40*Plots.px, grid=false, legend=false)
+    
+    # axs = plot(layout=grid(4,3, widths=[1/4 1/4 1/2; 1/3 1/3 1/3; 1/3 1/3 1/3]), size=(3*350, 3*350), dpi=dpi,
+    #            bottom_margin=20*Plots.px, left_margin=40*Plots.px, grid=false, legend=false)
+    
+
     # model panels
     machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
 
@@ -841,7 +1033,8 @@ function figure4()
     times = (1:Ts[end][end]*5) .- Ts[end][end]*(5-1)
     for (gx,g) in enumerate(incongruentsequence)
         ind = (gx-1)*Ts[end][end]+1:min(gx*Ts[end][end]+1,length(times))
-        plot!(ax,times[ind],fractioncorrects[end,ind,3], lw=2, color=:darkorange, ls=[:solid,:dash][Int(g)+1])
+        plot!(ax,times[ind],fractioncorrects[end,ind,4], lw=2, color=:darkorange, ls=[:solid,:dash][Int(g)+1])
+        plot!(ax,times[ind],fractioncorrects[end,ind,1], lw=1, color=:gray)
     end
     plot!(ax,times,contextaccuracy[end,:,2], lw=2, color=:mediumvioletred)
     for s in -60:15:0 
@@ -899,6 +1092,160 @@ function figure4()
 
     # model suppression
 
+    # angles
+    nsequence = 5
+    nhidden = 30
+    filenamebase = machineparameters[:modeltype]*"-s$(machineparameters[:nsequence])-h$(machineparameters[:nhidden])"
+    @load(joinpath(config[:modelanalysispath],  "distances", filenamebase*"-angles.bson"), @__MODULE__, angles, validmodels)
+    angles = angles[validmodels,:,:]          # vis-aud, cx-vis, cx-aud, cx-dec, vis-dec, aud-dec
+    comparetimepoints = [Ts[2][1],Ts[2][1],Ts[2][1],Ts[3][1],Ts[3][1],Ts[3][1]]
+    nmodels = size(angles,1)
+
+
+    # stats
+    ps = []
+    for a in axes(angles,3)
+        if a>4 break end
+        angle = angles[:,comparetimepoints[a],a]
+        @info "" pvalue(OneSampleTTest(angle, 90))
+        push!(ps,pvalue(OneSampleTTest(angle, 90)))
+    end
+
+    labels = ["visual","auditory","context","decision","reward"]
+    
+
+    ax = axs[5]
+
+    m = mean(angles[:,comparetimepoints[1],1])
+    s = 2*std(angles[:,comparetimepoints[1],1])
+    scatter!(ax, [m], [1.0], color=:darkcyan, markerstrokewidth=0, label="visual ⋅ auditory")
+    plot!(ax, [m-s,m+s],[1.0, 1.0], color=:darkcyan, lw=2, label=nothing)
+    vline!(ax, [90], color=:grey, ls=:dash,label=nothing)
+    xlims!(ax, 0, 180)
+    ylims!(ax,0,2)
+    plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing, yaxis=false)
+    annotate!(ax, 120, 1.0, text("p=$(round(ps[1],digits=2))",:darkcyan, :left, :vcenter, 8))
+    xlabel!(ax, "angle between DVs [°]", xguidefontsize=8)
+    xticks!(ax, [45, 90, 135])
+    plot!(ax, right_margin=0*Plots.px)    # keep together the same letter-labeled panels
+
+    @panellabel ax "E" -0.3 1.1
+
+    ax = axs[6]
+
+    m = mean(angles[:,comparetimepoints[2],2])
+    s = 2*std(angles[:,comparetimepoints[2],2])
+    scatter!(ax, [m], [1.1], color=:purple, markerstrokewidth=0, label=" context ⋅ visual")
+    plot!(ax, [m-s,m+s],[1.1, 1.1], color=:purple, lw=2, label=nothing)
+
+    m = mean(angles[:,comparetimepoints[3],3])
+    s = 2*std(angles[:,comparetimepoints[3],3])
+    scatter!(ax, [m], [1.0], color=:olive,  markerstrokewidth=0, label=" context ⋅ auditory")
+    plot!(ax, [m-s,m+s],[1.0, 1.0], color=:olive, lw=2, label=nothing)
+
+    m = mean(angles[:,comparetimepoints[4],4])
+    s = 2*std(angles[:,comparetimepoints[4],4])
+    scatter!(ax, [m], [0.9], color=:darkgoldenrod,  markerstrokewidth=0, label=" context ⋅ decision")
+    plot!(ax, [m-s,m+s],[0.9, 0.9], color=:darkgoldenrod, lw=2, label=nothing)
+
+    vline!(ax, [90], color=:grey, ls=:dash,label=nothing)
+    xlims!(ax, 0, 180)
+    ylims!(ax,0,2)
+    plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing, markerstrokewidth=0, yaxis=false)
+    annotate!(ax, 120, 1.1, text("p=$(round(ps[2],digits=2))",:purple, :left, :vcenter, 8))
+    annotate!(ax, 120, 1.0, text("p=$(round(ps[3],digits=2))",:olive, :left, :vcenter, 8))
+    annotate!(ax, 120, 0.9, text("p=$(round(ps[4],digits=2))",:darkgoldenrod, :left, :vcenter, 8))
+    xlabel!(ax, "angle between DVs [°]", xguidefontsize=8)
+    xticks!(ax, [45, 90, 135])
+    plot!(ax, left_margin=0*Plots.px, right_margin=30*Plots.px)    # keep together the same letter-labeled panels
+
+    @panellabel ax "F" -0.3 1.1
+
+
+
+
+
+    # stimulus subspaces
+
+    @load( joinpath(config[:modelanalysispath],  "contextrepresentation", "contextprojections-rnn.bson"), @__MODULE__, SRs, SRPs, validmodels)
+    SRs = SRs[validmodels,:,:,:]
+    SRPs = SRPs[validmodels,:,:,:,:]    # nmodels, stimulus, ncontexts, ngonogo, ntimepoints
+    nmodels = sum(validmodels)
+    ntimecourse = Ts[end][end]
+    timestamps = 61:75
+    labelstimulus = ["visual","auditory"]
+    labelinstr = ["go","nogo"]
+    colors = [:deepskyblue :blue; :lime :green]
+    for sx in 1:2, rx in 1:2
+        cx = 2 - (sx==rx)
+        ax = axs[6+sx]
+        m = mean(SRPs[:,sx,cx,:,timestamps],dims=2)[:,1,:]
+        # plot!(ax, m', color=colors[sx,rx], ls=[:solid, :dash][gx], alpha=0.2)
+        plot!(ax, (1:ntimecourse) .- Ts[2][begin], mean(m,dims=1)', ribbon=std(m,dims=1)'/sqrt(nmodels), color=colors[sx,rx], lw=2, fillalpha=0.3,
+                    label=["relevant","irrelevant"][rx]*"($(labelstimulus[cx]) context)")
+        if rx==1
+            # @nolinebackground(ax,Ts[2][1],Ts[3][end],Ts[3][1],bg=:darkgrey)
+            vspan!(ax,[Ts[2][begin],Ts[3][end]].-Ts[2][begin], color=:grey, alpha=0.3, label=nothing)
+            vline!(ax,[Ts[3][begin]].-Ts[2][begin],color=:white, alpha=0.5, lw=2, label=nothing)
+            hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
+            plot!(ax, legend=:bottomleft, foreground_color_legend=nothing, background_color_legend=nothing)
+            ylims!(ax,-0.5,1.5)
+        end
+        if rx==1 && sx==1
+            ylabel!(ax,"stimulus projection")
+            @panellabel ax "G" -0.3 1.1
+        end
+        xlabel!(ax,"timesteps from stimulus onset")
+        title!(ax,labelstimulus[sx]*" stimulus")
+    end
+
+
+
+
+
+
+
+
+
+    # context representation flip
+    # ax = axs[9]
+    # @load( joinpath(config[:modelanalysispath],  "contextrepresentation", "contextprojections-rnn.bson"), @__MODULE__, CRs, CRPs, validmodels)
+    # CRs = CRs[validmodels,:,:,:]
+    # CRPs = CRPs[validmodels,:,:,:,:]    # nmodels, ncontexts, ngonogo, ntimepoints, nprojection
+    # nmodels = sum(validmodels)
+
+    # colors = [:fuchsia, :purple]
+    # colors = [:deeppink, :rebeccapurple]
+    # lss = [:solid, :dash]
+
+    # # show the context DV projection difference between contexts at pre and dec projection operators
+    # # @nolinebackground(ax,Ts[2][1],Ts[3][end],Ts[3][1],bg=:white)
+    # vspan!(ax,[Ts[2][begin],Ts[3][end]].-Ts[2][begin], color=:grey, alpha=0.3, label=nothing)
+    # vline!(ax,[Ts[3][begin]].-Ts[2][begin],color=:white, alpha=0.5, lw=2, label=nothing)
+    # hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
+    # for (px,ct) in enumerate([1,3])
+    #     for (dx,m) in enumerate(( CRPs[:,1,1,timestamps,ct] - CRPs[:,2,1,timestamps,ct],
+    #                               CRPs[:,1,2,timestamps,ct] - CRPs[:,2,2,timestamps,ct]) )
+    #         plot!(ax, (1:ntimecourse) .- Ts[2][begin], mean(m,dims=1)', ribbon=std(m,dims=1)'/sqrt(nmodels), color=colors[px], lw=2, ls=lss[dx], fillalpha=0.3,
+    #                 label=["pre","dec"][px]*" "*["go","nogo"][dx])
+    #     end
+    #     # vline!(ax,[[Ts[1][2],Ts[2][1],Ts[3][1]][ct]],color=colors[px],lw=2,label=nothing)
+    #     plot!(ax,fill([Ts[1][3],Ts[2][1],Ts[3][1]][ct],2) .-Ts[2][begin],[-1,-0.7],color=colors[px],lw=2,label=nothing)
+    # end
+    # ylims!(ax,-0.8,0.8)
+    # yticks!(ax,[-0.5,0,0.5])
+    # plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
+    # ylabel!(ax,"context projection")
+    # xlabel!(ax,"timesteps from stimulus onset")
+    # @panellabel ax "H" -0.3 1.1
+
+
+
+
+
+
+    # output/decision subspace
+
     machineparameters = YAML.load_file("params-rnn.yaml"; dicttype=Dict{Symbol,Any})
     sequencelength = 5
     nhidden = 30
@@ -932,12 +1279,12 @@ function figure4()
     colors = [:deepskyblue :green; :blue :lime]     # relevancy x stimulus
     maxcells = 1
     for (sx,stimulus) in enumerate(labelstimulus)
-        ax = axs[4+sx]
+        ax = axs[8+sx]
         vspan!(ax,[Ts[2][begin],Ts[3][end]].-Ts[2][begin], color=:grey, alpha=0.3, label=nothing)
         vline!(ax,[Ts[3][begin]].-Ts[2][begin],color=:white, alpha=0.5, lw=2, label=nothing)
         hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
     
-        for cx in ([2,1],[1,2])[sx]
+        for cx in ([1,2],[2,1])[sx]
             context = labelscontexts[cx]
         
             d = similar(h[:,:,1:2*maxcells,1,cx,sx])
@@ -957,7 +1304,7 @@ function figure4()
         xlabel!(ax,"timesteps from stimulus onset")
         if sx==1
             ylabel!(ax,"activity")
-            @panellabel ax "E" -0.35 1.1
+            @panellabel ax "H" -0.3 1.1
         else
             plot!(ax, left_margin=20*Plots.px)    # keep together the same letter-labeled panels
         end
@@ -974,7 +1321,7 @@ function figure4()
     # plot    enhancement - suppression   vs    performance
     # performances dimensions: (nmodels, context, go/nogo, congruency)
     p = minimum(performances[:,:,:,2],dims=(2,3))[:,1,1] # incongruent only
-    ax = axs[7]
+    ax = axs[11]
 
     ess = vcat( [ es[s[:,1,gx]] for gx in 1:2 ]... )
     scatter!(ax, p, ess, color=:black, markerstrokewidth=0 )
@@ -991,7 +1338,7 @@ function figure4()
     ylabel!(ax,"activity difference\nrelevant - irrelevant")
     plot!(ax, right_margin=20*Plots.px)
 
-    @panellabel ax "F" -0.3 1.1
+    @panellabel ax "I" -0.1 1.1
 
 
     
@@ -1024,7 +1371,7 @@ function figure5()
 
 
 
-    axs = plot(layout=(2,3),size=(3*350, 2*300), legend=false, dpi=600,
+    axs = plot(layout=@layout([ a{0.333w} b c; d e f g]),size=(4*300+70, 2*300+30), legend=false, dpi=dpi,
                left_margin=15*Plots.px, bottom_margin=15*Plots.px, top_margin=-15*Plots.px, right_margin=15*Plots.px)
 
 
@@ -1081,13 +1428,14 @@ function figure5()
     # context gated mutual feedback
 
     # mutual  inhibition feedback
-    ax = axs[1,1]
-    mutualfeedbackimage = load(joinpath(config[:publicationfigurespath],"parts/","mutualfeedback-schematics.png"))
-    plot!(ax, mutualfeedbackimage, top_margin=50*Plots.px, left_margin=30*Plots.px)
+    ax = axs[1]
+    crossmutualimage = load(joinpath(config[:publicationfigurespath],"parts/","cross,mutual.png"))
+    plot!(ax, crossmutualimage, top_margin=50*Plots.px, left_margin=30*Plots.px, bottom_margin=45*Plots.px)
     # xlims!(ax, 40,1380)
     # ylims!(ax, 110,600)
     plot!(ax, xticks=false, yticks=false, axis=false)
-    @panellabel ax "B" -0.2 -0.6
+    @panellabel ax "B" -0.18 -0.57
+    @panellabel ax "C"  0.45  -0.57
 
 
 
@@ -1115,7 +1463,7 @@ function figure5()
     # end
 
 
-    ax = axs[1,2]
+    ax = axs[2]
     # colorspace = :RdBu   # :diverging_gkr_60_10_c40_n256
     colorspace = cm
     M = (allFmg+allFmn)/2      # average over go and nogo representations
@@ -1124,11 +1472,13 @@ function figure5()
     heatmap!(ax, M, color=colorspace, clim=limsabsmaxnegpos(M), aspect_ratio=:equal, yflip=true, axis=false)
     # narrow colorbar:
     plot!(inset_subplots=(2, bbox(1.02, 0, 0.05, 1, :bottom, :left)))
-    plot!(axs[7], axis=false)
-    heatmap!(twinx(axs[(*)(length(axs))]), repeat(-1:1/200:1,1,2), color=colorspace, yticks=((0,200,400),("-1 AU","0 AU","1 AU")), colorbar=false, xticks=false)
-    @panellabel ax "C" -0.2 -0.2
+    plot!(axs[end], axis=false)
+    heatmap!(twinx(axs[(*)(length(axs))]), repeat(-1:1/200:1,1,2), color=colorspace,
+              yticks=((0,200,400),("-1 AU","0 AU","1 AU")), colorbar=false, xticks=false)
+    
+    @panellabel ax "D" -0.2 -0.2
  
-    ax = axs[1,3]
+    ax = axs[3]
     plot!(ax,  axis=false, aspect_ratio=:equal, colormap=false)
     
     # M = M^6       # nonlinearmatrixpower(tanh,M,6,1)
@@ -1137,7 +1487,7 @@ function figure5()
     # narrow colorbar:
     # plot!(ax, inset_subplots=(6, bbox(1.0, 0, 0.05, 1, :bottom, :left)), axis=false)
     # heatmap!(twinx(axs[(*)(length(axs))]), repeat(-1:1/200:1,1,2), color=colorspace, yticks=((0,200,400),("-1 AU","0 AU","1 AU")), colorbar=false, xticks=false)
-    @panellabel ax "D" -0.2 -0.2
+    @panellabel ax "E" -0.2 -0.2
 
 
 
@@ -1147,7 +1497,7 @@ function figure5()
 
     # activity structure with modality index context index
     # load for V1, ACC, and models
-    panels = ["F","G","E"]
+    panels = ["G","H","F"]
     labelagent = ["V1","ACC","RNN"]
 
     # load mouse data
@@ -1159,10 +1509,10 @@ function figure5()
         @load(joinpath(config[:cachepath],"subspace/","mutualswitchsubspaces-$(string(mouseid)).bson"),  @__MODULE__,
             modalityunitssingle, modalityindexsingle, contextindex)
         modalityindex = dropdims(mean([modalityindexsingle[modalityunitssingle[:,1],1] modalityindexsingle[modalityunitssingle[:,2],2] ],  dims=2), dims=2)
-        contextindex = dropdims(mean([contextindex[modalityunitssingle[:,1],1] contextindex[modalityunitssingle[:,2],2] ],  dims=2), dims=2)
+        contextindex = dropdims(mean([contextindex[modalityunitssingle[:,1],:,1];;; contextindex[modalityunitssingle[:,2],:,2] ],  dims=3), dims=3)
         push!(modalityindexV1,modalityindex)
         push!(contextindexV1,contextindex)
-        nmicemax[1] = max(nmicemax[1],length(contextindex))
+        nmicemax[1] = max(nmicemax[1],size(contextindex,1))
     end
     mouseidsACC = collectsubjectids("ACC")
     modalityindexACC = []
@@ -1171,95 +1521,147 @@ function figure5()
         @load(joinpath(config[:cachepath],"subspace/","mutualswitchsubspaces-$(string(mouseid)).bson"),  @__MODULE__,
              modalityunitssingle, modalityindexsingle, contextindex)
         modalityindex = dropdims(mean([modalityindexsingle[modalityunitssingle[:,1],1] modalityindexsingle[modalityunitssingle[:,2],2] ],  dims=2), dims=2)
-        contextindex = dropdims(mean([contextindex[modalityunitssingle[:,1],1] contextindex[modalityunitssingle[:,2],2] ],  dims=2), dims=2)
+        contextindex = dropdims(mean([contextindex[modalityunitssingle[:,1],:,1];;; contextindex[modalityunitssingle[:,2],:,2] ],  dims=3), dims=3)
         push!(modalityindexACC,modalityindex)
         push!(contextindexACC,contextindex)
-        nmicemax[2] = max(nmicemax[2],length(contextindex))
+        nmicemax[2] = max(nmicemax[2],size(contextindex,1))
     end
     # load model data
     @load( joinpath(config[:modelanalysispath],  "suppression", "subspaces-rnn-reduced.bson"), @__MODULE__, allCim)
     @load( joinpath(config[:modelanalysispath],  "suppression", "subspaces-rnn.bson"), @__MODULE__,
-                 Fmgs, Fmns,  Mis, Cis, Dis, Ris, Cims, Rims, Rigns, DWis, DWhs, DWos, validmodels) 
+                 Fmgs, Fmns,  Mis, Cis, Dis, Ris, Cims, Ccms, Rims, Rigns, DWis, DWhs, DWos, validmodels) 
 
 
     # plot context indices with neuron ordering by modality index
     numoutliers = 6 # leave out this many neurons at the beginning and end of the neuron ordering
     agpanel = [2,3,1]
+    neuronpositionsconcat = Int64[]
+    contextindicesconcat = zeros(Float64, 0, 3)
     for ag in [1,2,3]
-        ax = axs[2,agpanel[ag]]
+        ax = axs[3+agpanel[ag]]
         if ag<3
             contextindex = ag==1 ? contextindexV1 : contextindexACC
             mouseids = ag==1 ? mouseidsV1 : mouseidsACC
             miceneuronpositions = 1:nmicemax[ag]
-            contextindices = NaN .* ones(nmicemax[ag],length(mouseids))
+            contextindices = NaN .* ones(nmicemax[ag],length(mouseids),4)
             neuronpositionsconcat = Int64[]
-            contextindicesconcat = Float64[]
+            contextindicesconcat = zeros(Float64, 0, 4)
             for mid in eachindex(mouseids)
-                nneurons = size(contextindex[mid],1)
+                nneurons = size(contextindex[mid][:,4],1)
                 shift = (nmicemax[ag] - nneurons)÷2
                 neuronpositions = miceneuronpositions[(1:nneurons) .+ shift]
                 # for mean display
-                contextindices[neuronpositions,mid] = contextindex[mid]
+                contextindices[neuronpositions,mid,:] = contextindex[mid]
                 # concatenate for correlation
                 neuronpositionsconcat = [neuronpositionsconcat; neuronpositions]
                 contextindicesconcat = [contextindicesconcat; contextindex[mid]]
             end
 
             # individual mice
-            plot!(ax, contextindices, lw=1, color=:grey, alpha=0.5)
+            plot!(ax, contextindices[:,:,4], lw=1, color=:grey, alpha=0.5)
 
             # mean of mice
             miceneuronpositionsnooutlier = miceneuronpositions[numoutliers:end-numoutliers]       # take into account only multiple mice data
-            ci = [ mean(contextindices[n, .! isnan.(contextindices[n,:])]) for n in miceneuronpositionsnooutlier]
+            ci = [ mean(contextindices[n, .! isnan.(contextindices[n,:,4]),4]) for n in miceneuronpositionsnooutlier]
             plot!(ax,miceneuronpositionsnooutlier,ci,lw=2,color=:lightseagreen)
 
             
 
             # correlation statistics
-            â,r,p = getcorrelation(neuronpositionsconcat, contextindicesconcat)
+            â,r,p = getcorrelation(neuronpositionsconcat, contextindicesconcat[:,4])
             plot!(ax, miceneuronpositions[[1,end]], â[1].*miceneuronpositions[[1,end]].+â[2], color=:red, ls=[:dash :solid][ag], lw=1.5, alpha=0.8)
             @info "corr" brainarea=["V1","ACC"][ag] â[2] r p n=length(neuronpositionsconcat)
             r = round(r,digits=2)
-            p = round(p,digits=[2,4][ag])
-            annotate!(ax, miceneuronpositions[end], 9, "r=$(r) p=$(p)", font(pointsize=8, color=:red, halign=:right))
+            # p = round(p,digits=[2,4][ag])
+            p = ["=0.41","<10⁻⁶"][ag]
+            annotate!(ax, 3, -6, "r=$(r) p$(p)", font(pointsize=8, color=:red, halign=:left))
 
             hline!(ax,[0], ls=:dash, color=:grey, alpha=0.5)
-            ylims!(ax, -10, 10)
+            ylims!(ax, -8, 8)
 
             xticks!(ax,[1,nmicemax[ag]÷2,nmicemax[ag]])
 
         elseif ag==3
-            Cims = Cims[validmodels,:,:]
+            Cims = Cims[validmodels,:,:,:]
             nneurons = size(Cims,2)
+            
+            colorseries = [:purple, :maroon, :orange, :lightseagreen]
+            for px in 4:4        # context index calculation timepoint: pre, at start, dec, all
 
-            m = dropdims(mean(Cims,dims=(1,3)),dims=(1,3)) # mean over models and go-nogo
-            e = dropdims(std(Cims,dims=(1,3)),dims=(1,3))./sqrt(2*size(Cims,1)) 
-            plot!(ax, 1:nneurons, m, ribbon=e, lw=2, color=:lightseagreen, facealpha=0.3)
+                m = dropdims(mean(Cims[:,:,px,:],dims=(1,3)),dims=(1,3)) # mean over models and go-nogo
+                e = dropdims(std(Cims[:,:,px,:],dims=(1,3)),dims=(1,3))./sqrt(2*size(Cims,1)) 
+                plot!(ax, 1:nneurons, m, ribbon=e, lw=2, color=colorseries[px], facealpha=0.3)
 
-            # correlation statistics
-            â,r,p = getcorrelation(1:nneurons, m)
-            plot!(ax, [1,nneurons], â[1].*[1,nneurons].+â[2], color=:red, lw=1.5, alpha=0.8)
-            @info "corr context modality" "models" sum(validmodels)  â[2] r p
-            r = round(r,digits=2)
-            p = round(p,digits=3)
-            annotate!(ax, nneurons, 0.045, "r=$(r) p=$(p)", font(pointsize=8, color=:red, halign=:right))
+                # correlation statistics
+                â,r,p = getcorrelation(1:nneurons, m)
+                plot!(ax, [1,nneurons], â[1].*[1,nneurons].+â[2], color=:red, lw=1.5, alpha=0.8)
+                @info "RNN models, corr context modality" sum(validmodels)  â[2] r p
+                r = round(r,digits=2)
+                # p = round(p,digits=4)        # <10⁻³ <10⁻⁶
+                p = ["<10⁻³","<10⁻¹⁶","<10⁻¹⁶","<10⁻¹⁶"]
+                annotate!(ax, [1,nneurons÷2,1,2][px], [-0.06,0.14,-0.2,-0.15][px], "r=$(r) p$(p[px])",
+                              font(pointsize=8, color=:red, halign=[:left,:center,:left,:left][px]))
+            
+            end
 
             hline!(ax,[0], ls=:dash, color=:grey, alpha=0.5)
-            ylims!(ax, -0.055, 0.055)
-            yticks!(ax, -0.04:0.02:0.04)
+            ylims!(ax, -0.2, 0.2)
+            yticks!(ax, -0.2:0.1:0.2)
             xticks!(ax,[1,size(allCim,1)÷2,size(allCim,1)])
         end
 
 
 
-        title!(ax,labelagent[ag])
+        # title!(ax,labelagent[ag])
+        annotate!(ax,0,[10,10,0.26][ag],text(labelagent[ag],10,:left))
 
         xlabel!(ax, "neurons")
         ylabel!(ax, "context index")
     
-        @panellabel ax panels[ag] -0.2 1.3
+        @panellabel ax panels[ag] -0.3 1.3
 
     end
+
+    ax = axs[7]
+    # plot!(ax,  axis=true)
+    labels = ["pre","start","dec"]
+    colors = [:purple, :maroon, :orange]
+    rs = []
+    ps = []
+    for px in 1:3
+        â,r,p = getcorrelation(neuronpositionsconcat, contextindicesconcat[:,px])
+        @info "$(labels[px])" r p
+        push!(rs,r)
+        push!(ps,p)
+        # pss = ["=2⋅10⁻³","=0.02","=2⋅10⁻⁴"]
+        rd = round(r,digits=2)
+        p = round(p,digits=3)
+        annotate!(ax, px, 0.01, "r=$(rd)\np=$(p)", font(pointsize=8, color=:red, halign=:center, :bottom))
+    end
+    bar!(ax, [1, 2, 3], rs, widths=0.1, color=colors, linecolor=colors, label=nothing)
+    ylims!(ax,-0.33,0.0)
+    yticks!(ax, -0.3:0.1:0)
+    xticks!(ax,[1,2,3],labels)#,rotation=45)
+    xlabel!(ax, "context index time")
+    ylabel!(ax, "correlation")
+    @panellabel ax "I" -0.4 1.3
+
+
+    # plot!(axs[7], inset_subplots=(7, bbox(0.70, 0.80, 0.30, 0.20, :bottom, :left)))
+    # labels = ["pre","start","dec"]
+    # ax = axs[end]
+    # @nolinebackground ax 0 3 2 bg=:white
+    # for (ix,interval) in enumerate(([-1,-0.25],[0,0.75],[1.75,2.5]))
+    #     vspan!(ax, interval, color=colors[ix], label=nothing)
+    # end
+    # ylims!(ax,0.4,1)
+    # xlims!(ax,-1.5,4.5)
+    # plot!(ax, yaxis=nothing)
+    # xticks!(ax, [0,2,3.],["", "", ""])
+    # for x in [0,2,3] annotate!(ax, x, 0.32, text("$x", 6, :top)) end
+    # annotate!(ax, 1.5, 0.17, text("time from stimulus onset [s]", 6, :top))
+
+
 
 
     # statistics for modality index values vs context index (not the sorting)
@@ -1273,7 +1675,7 @@ function figure5()
         for mid in eachindex(mouseids)
             # concatenate for correlation
             modalityindicesconcat = [modalityindicesconcat; modalityindex[mid]]
-            contextindicesconcat = [contextindicesconcat; contextindex[mid]]
+            contextindicesconcat = [contextindicesconcat; contextindex[mid][:,3]]
         end
 
         # individual mice
@@ -1314,3 +1716,864 @@ function figure5()
 
 
 end
+
+
+
+"""
+plot each mouse behaviour and chance consistent occurrence
+"""
+function supplementaryfigure1()
+
+    figurepostfix = "behavior,detailed"
+    @info "making supplementary figure 1" figurepostfix
+
+
+    mouseids = collectsubjectids("ACC")
+
+
+    l = @layout([  a{0.5w} b{0.25w} c;
+                   d{0.5w} e{0.25w} f;
+                   g{0.5w} h{0.25w} i;
+                   j{0.5w} k{0.25w} l ])
+
+    axs = plot(layout=l, size=(4*350,4*300), dpi=dpi, legend=nothing)
+    axinsetzero = 12
+    plot!(axs[1], left_margin=40*Plots.px, top_margin=30*Plots.px)
+    
+
+    for (n,mouseid) in enumerate(mouseids)
+        
+        spn = (n-1)*3+1
+        ax = axs[spn]
+
+        plot!(ax, axis=false)
+        
+        labels = ["── go congruent" "--- go incongruent"; "── nogo congruent" "--- nogo incongruent"]
+        nwbfile,_ = loadnwbdata(mouseid)
+        triallist = nwbdf(nwbfile.trials)
+        filter!(:difficulty=>u->u=="complex",triallist)
+        addcongruencycolumn!(triallist)
+        maperfs = movingaverageperformancetrialtypes(triallist)
+        highperfs = highperformancetrialsmask(maperfs)
+        contextboundary = findfirst(triallist[!,:context].==triallist[end,:context])
+        boundaries = [1 contextboundary-1; contextboundary nrow(triallist)]
+        choices = choicesselected(triallist)
+        for sx in 1:2, congi in 1:2
+            ix = (sx-1)*2+congi
+            plot!(axs[spn], inset_subplots=(spn, bbox(0, 1-ix*0.22, 1, 0.18, :bottom, :left)))
+            ax = axs[axinsetzero+(n-1)*5+ix]
+            for cx in 1:2         # contexts
+                if sx+congi==2 annotate!(ax, sum(boundaries[cx,1]),1.1, text(["visual","auditory"][cx]*"\ncontext",[:navy,:darkgreen][cx],:left, :bottom, 8)) end
+                # plot moving averages
+                trl = range(boundaries[cx,:]...)
+                plot!(ax, trl, maperfs[trl,sx,congi], color=[:lightseagreen, :indianred][sx], ls=[:solid, :dash][congi], lw=2, alpha=0.8,label=nothing)
+                # also plot actual successes and failures for each as markers
+                for s in [false,true]   # failure, success
+                    ch = choices[(sx-1)*2+congi]
+                    mask = ch[2].==s
+                    scatter!(ax, ch[1][mask], zeros(sum(mask)).-0.2, marker=[:x,:o][Int(s)+1],
+                                markersize=2.5, markerstrokewidth=1, color=:black, alpha=0.5, label=nothing)
+                end
+                # plot!(ax, legend=:right, foreground_color_legend=nothing, background_color_legend=nothing)
+                annotate!(ax, 1, 0.3, text(labels[sx,congi],[:lightseagreen, :indianred][sx], :left, 6))
+                plot!(ax,xaxis=false, ytickfontsize=6, ytickhalign=:left)
+            end
+            # plot!(ax, bottom_margin=-4*Plots.px, top_margin=-4*Plots.px)
+            if sx+congi<4 plot!(ax,xticks=nothing) end
+            plot!(ax, yticks=[0, 0.5, 1.0], ylims=[-0.4, 1.0], xlims=[-2,boundaries[2,2]+1])
+            # plot!(ax, ytickfonthalign=:left, xtickfontvalign=:bottom)
+            hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
+            # vline!(ax, [contextboundary-0.5], color=:grey, label=nothing)
+        end
+        
+        plot!(axs[spn], inset_subplots=(spn, bbox(0, 0, 1, 0.06, :bottom, :left)))
+        ax = axs[axinsetzero+(n-1)*5+5]
+        bar!(ax, .! highperfs, color=:darkorange, linecolor=:darkorange, label=nothing)
+        bar!(ax,    highperfs, color=:purple,     linecolor=:purple,     label=nothing)
+        # vline!(ax, [contextboundary-0.5], color=:grey, label=nothing)
+        annotate!(ax, 0, 1.6, text("exploratory trials", :darkorange, :bottom, :left, 6, "Helvetica Bold"))
+        annotate!(ax, 0, 1.06, text("consistent trials", :purple, :bottom, :left, 6, "Helvetica Bold"))
+        ylims!(ax, 0.05,1.15)
+        xlims!(ax,-2,boundaries[2,2]+1, xticks=[1,boundaries[2,:]...]) # xtickfontsize=8
+        xlabel!(ax, "trials")
+        plot!(ax, yaxis=false)
+        plot!(ax, bottom_margin=20*Plots.px)
+        
+        @panellabel axs[spn] ["A","B","C","D"][n] -0.1 1.12
+        @panellabel axs[spn+1] ["E","F","G","H"][n] -20 0.3
+
+
+    end
+
+
+    # probabilities of sequence lengths
+    # axsp = plot(layout=(2,1))
+
+
+    # load a dict of repeated probability simulations by mouseid containing a dict for each context
+    # load mouse consecutive consistent blocks numbers
+
+
+    @load(joinpath(config[:cachepath], "behaviour", "probabilityconsistentperiods,incongruentbias.bson"), @__MODULE__, probabilityconsistentperiods)
+    @load(joinpath(config[:cachepath], "behaviour", "movingaveragestatistics,mice.bson"), @__MODULE__, consecutivesegmentsmice)
+
+    # markershapes = [:circle,:square,:diamond,:utriangle]
+    markershapes = repeat([:circle],length(mouseids))
+    labels = ["number of consistent trials", "length of longest consecutive\nconsistent trials"]
+
+    for (n,mouseid) in enumerate(mouseids)
+        spn = (n-1)*3+1
+
+        numconsistent = sum.(consecutivesegmentsmice[mouseid])
+        conseqconsistent = maximum.(consecutivesegmentsmice[mouseid])
+
+        # find the less likely context, and restrict display to that context
+        for (cx,context) in enumerate(["visual","audio"])
+            ax = axs[spn+cx]
+            @info "$mouseid $context" numconsistent cx context p=probabilityconsistentperiods[mouseid][context][:pchoicebias]
+            ntrials = probabilityconsistentperiods[mouseid][context][:ntrials]
+            prob_ntrials_successes = probabilityconsistentperiods[mouseid][context][:prob_ntrials_successes] 
+            prob_atleastone_consecutive_length = probabilityconsistentperiods[mouseid][context][:prob_atleastone_consecutive_length]
+
+
+            # sizes: prob_ntrials_successes: (ntrials), prob_atleastone_consecutive_length: (ntrials, conseucive length)
+            prob_ntrials_successes[prob_ntrials_successes.==0] .= 0.5/config[:generativeconsecutivesamplingrepeats]
+            prob_atleastone_consecutive_length[prob_atleastone_consecutive_length.==0] .= 0.5/config[:generativeconsecutivesamplingrepeats]
+
+            plot!(ax, prob_ntrials_successes, color=:dodgerblue, lw=1.5, yscale=:log10, alpha=0.5, label="simulation")
+            # plot!(ax, prob_atleastone_consecutive_length, lw=1.5, color=:purple, alpha=0.5, label=nothing)
+
+            xlims!(ax, 0, 60)
+            ylims!(ax, 1e-7, 1e-1)
+
+            
+            
+            if cx==1 plot!(ax, ylabel="probability of\nbehaviour by chance", left_margin=30*Plots.px) end
+            if n==4 plot!(ax, xlabel="number of consistent trials") end
+
+            scatter!(ax, [numconsistent[cx]], [prob_ntrials_successes[numconsistent[cx]]],
+                        markercolor=:dodgerblue, markerstrokewidth=0, markershape=markershapes[n], alpha=0.8, label="simulation (number of trials from mouse)")#labels[1])
+            # scatter!(ax, [conseqconsistent[cx]], [prob_atleastone_consecutive_length[conseqconsistent[cx]]],
+            #             markercolor=:purple, markerstrokewidth=0, markershape=markershapes[n], alpha=0.8, label=labels[2])
+            
+            if n==1 annotate!(ax, 30, 0.11, text(["visual","auditory"][cx]*" context", :hcenter, [:blue,:green][cx], 10)) end
+            if n==1 && cx==1 plot!(ax, legend=:bottomleft, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8) end
+        end
+
+
+    end
+
+    # @panellabel ax "D" -0.20 1.2
+
+
+    plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)
+    display(axs)
+
+    savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure1-$(figurepostfix).png"))
+    savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure1-$(figurepostfix).pdf"))
+
+
+end
+
+
+
+
+
+
+function supplementaryfigure2()
+    figurepostfix = "irrelevant,suppression,individual"
+    @info "making figure 2" figurepostfix
+
+
+    axs = plot(layout=(8,4),size=(4*350, 8*300), legend=false, dpi=dpi,
+               left_margin=20*Plots.px, bottom_margin=15*Plots.px, top_margin=20*Plots.px, right_margin=20*Plots.px)
+
+
+
+
+
+    # panels first 2×2 blocks
+    # mice suppression
+
+    
+    mouseidsv1 = collectsubjectids("V1")
+    nmicev1 = length(mouseidsv1)
+    mousev1ind = 1:nmicev1
+
+    mouseidsacc = collectsubjectids("ACC")
+    nmiceacc = length(mouseidsacc)
+    mouseaccind = nmicev1+1:nmicev1+nmiceacc
+
+
+    labelsstimulus = ["visual","auditory"]
+    labelscontexts = ["visual","auditory"]
+    labelsrelevancies = ["relevant" "irrelevant"; "irrelevant" "relevant"]
+    colors = [:deepskyblue :green; :blue :lime]     # relevancy x stimulus
+
+    timestamps = []
+    accuracieslists = []
+    projectionslists = []
+    for mouseids in [mouseidsv1,mouseidsacc]
+        for mouseid in mouseids
+            @load(config[:cachepath]*"subspace/decode,relevancy-$(string(mouseid)).bson", @__MODULE__, timestamps, accuracies, projections)
+            push!(accuracieslists, accuracies[1,:,:,:,:])     # collect only the decoder trained and tested on all trials
+            push!(projectionslists, projections[1,:,:,:,:,:])
+        end
+    end
+    accuracieslists = vcat(reshape.(accuracieslists,1,size(accuracieslists[1])...)...)
+    projectionslists = vcat(reshape.(projectionslists,1,size(projectionslists[1])...)...)
+
+
+    sm = 51 # smoothing window
+
+    for (bx,mouseind) in enumerate((mousev1ind,mouseaccind))
+        if bx==1 continue end
+        for (stimulusindex,stimulus) in enumerate(labelsstimulus)
+            for contextindex in ([1,2],[2,1])[stimulusindex]
+                context = labelscontexts[contextindex]
+
+                # draw individual mice
+                for (mx,mouseid) in enumerate(mouseind)
+                    ax = axs[stimulusindex+(mx-1)*2,1] # axs[stimulusindex,bx]
+                    @decoderbackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
+                    m = @movingaverage(accuracieslists[mouseid,contextindex,stimulusindex,:,1],sm)
+                    e = @movingaverage(accuracieslists[mouseid,contextindex,stimulusindex,:,3],sm)
+                    plot!(ax, timestamps, m, ribbon=e, lw=1.5, color=colors[contextindex,stimulusindex], alpha=0.85, fillalpha=0.25,
+                          label=labelsrelevancies[contextindex,stimulusindex]*" ("*context*" context)")
+                
+                    # # draw mean
+                    # m = @movingaverage(dropdims(mean(accuracieslists[mouseind,contextindex,stimulusindex,:,1],dims=1),dims=1),sm)
+                    # e = @movingaverage(dropdims(std(accuracieslists[mouseind,contextindex,stimulusindex,:,1],dims=1),dims=1)/sqrt(length(mouseind))+
+                    #     dropdims(mean(accuracieslists[mouseind,contextindex,stimulusindex,:,3],dims=1),dims=1), sm)
+                    # plot!(ax, timestamps, m, ribbon=e, lw=2, fillalpha=0.3, color=colors[contextindex,stimulusindex], alpha=0.8,
+                    #         label=labelsrelevancies[contextindex,stimulusindex]*" ("*context*" context)")
+                    # if bx==1 ylabel!(ax, "accuracy"); plot!(ax, left_margin=30*Plots.px) end
+                    plot!(ax,legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
+                    xlims!(ax,-1.2,4.2)
+                    ylims!(ax,0.45,1.05)
+                    title!(ax, ["decoding\nmouse $mx",""][stimulusindex])
+                    if stimulusindex==2 xlabel!(ax, "time from stimulus onset [s]") end
+                    ylabel!(ax, stimulus*" stimulus\naccuracy");
+                    if stimulusindex==2 plot!(ax, bottom_margin=60*Plots.px) end
+                    plot!(ax, left_margin=60*Plots.px, right_margin=40*Plots.px)
+                    if mx==1 && stimulusindex==1 @panellabel ax "A" -0.25 1.15 end
+                end
+            end
+        end
+    end
+
+
+
+
+
+    # projections to DVs
+    colors = [:deepskyblue :darkblue; :lime :darkgreen]
+    for (bx,mouseind) in enumerate((mousev1ind,mouseaccind))
+        if bx==1 continue end
+        for (sx, stimulus) in enumerate(labelsstimulus)
+            for (rx,labelrelevance) in enumerate(["relevant","irrelevant"])
+                cx = [sx,3-sx][rx]
+                for (mx,mouseid) in enumerate(mouseind)
+                    ax = axs[sx+(mx-1)*2,2]
+                    @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], :darkgray)
+                    hline!(ax,[0],ls=:dash,color=:darkgray, label=nothing)
+                    m = @movingaverage(abs.(projectionslists[mouseid,sx,cx,1,:,1] - projectionslists[mouseid,sx,cx,2,:,1]), sm)
+                    e = @movingaverage(projectionslists[mouseid,sx,cx,1,:,3] + projectionslists[mouseid,sx,cx,2,:,3], sm)
+                    plot!(ax, timestamps, m, ribbon=e, lw=2, color=colors[sx,rx],
+                            alpha=0.85, fillalpha=0.25, label="$(labelrelevance) ($(labelscontexts[cx]) context)")
+                    plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
+                    ylabel!(ax, "$(stimulus) projection\ngo-nogo abs. diff.")
+                    if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
+                    title!(ax, ["subspace projection\nmouse $mx",""][sx])
+                    ylims!(ax, 0, ylims(ax)[2])
+                    if mx==1 && sx==1 @panellabel ax "B" -0.25 1.15 end
+                end
+
+                # ax = axs[sx,3]
+                # m = abs.(projections[sx,rx,1,:,1]-projections[sx,rx,2,:,1])
+                # e = projections[sx,rx,1,:,3]+projections[sx,rx,2,:,3]
+                # m = @movingaverage(m,31)
+                # e = @movingaverage(e,31)
+                # plot!(ax, timestamps, m, ribbon=e, lw=2, color=colors[sx,rx], label=labelsrelevancy[rx])
+                # if cx==1 ylabel!(ax, "early $(labelsmodalities[sx])\nprojection difference go-nogo") end
+                # @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], :darkgray)
+                # hline!(ax,[0],ls=:dash,color=:darkgray, label=nothing)
+                # # ylims!(ax,0,800)
+
+            end
+        end
+    end
+
+
+
+
+
+
+    # right 2×2 block: mouse performance and suppression
+
+    # accuracies  is (nstates,nmodalities,nrelevancies,ntimestamps,3)               (last is stats)
+    # coefficients  is (nstates,nmodalities,nrelevancies,ntimestamps,nneurons+1)      # last is intercept
+    # projections is (nstates,nmodalities,nrelevancies,2,ntimestamps,3)             (2 is gonogo, last is stats)
+    accuraciesallareas = []
+    # colors = [:fuchsia :gold; :purple  :darkorange]       #  vis-aud × consistency
+    colors = [:purple :darkorange]                         # consistency
+    alphas = [1.0 0.8]
+    relevancylabels = ["relevant","irrelevant"]
+    consistencylabels = ["consistent","exploratory"]
+    for (bx,brainarea) in enumerate(["V1","ACC"])
+        if bx==1 continue end
+    
+        mouseids = collectsubjectids(brainarea)
+        nmice = length(mouseids)
+        timestamps = nothing
+        accuraciesall = []
+        for mouseid in mouseids
+            @load(joinpath(config[:cachepath],"subspace/","suppressionbehaviour-$(string(mouseid)).bson"), @__MODULE__,
+                           timestamps, accuracies)
+            push!(accuraciesall, accuracies)
+        end
+        ntimestamps = length(timestamps)
+        accuraciesall = @catvecleftsingleton accuraciesall
+        push!(accuraciesallareas, accuraciesall)
+
+        for sx in 1:2        # stimulus modalities
+            for rx in 1:2    # relevancies
+                for bx in 1:2        # consistency
+                    
+                    # individual
+                    for (mx,mouseid) in enumerate(mouseids)
+                        ax = axs[sx+(mx-1)*2,2+rx]
+                        vspan!(ax,[config[:stimulusstart],config[:stimulusend]], color=:grey, alpha=0.3, label=nothing)
+                        vline!(ax,[config[:waterstart]],color=:white, alpha=0.5, lw=2, label=nothing)
+                        hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
+                        m = @movingaverage(accuraciesall[mx,bx,sx,rx,:,1],sm)
+                        e = @movingaverage(accuraciesall[mx,bx,sx,rx,:,3],sm)
+                        plot!(ax,timestamps,m,ribbon=e,lw=1.5,color=colors[bx], alpha=0.85, fillalpha=0.25,
+                              label=relevancylabels[rx]*", "*consistencylabels[bx])
+
+                        # mean
+                        # m = @movingaverage(dropdims(mean(accuraciesall[:,bx,sx,rx,:,1],dims=1),dims=1),sm)
+                        # # e = @movingaverage(dropdims(std(accuraciesall[:,bx,sx,rx,:,1],dims=1),dims=1)/sqrt(nmice)+
+                        # #     dropdims(mean(accuraciesall[:,bx,sx,rx,:,3],dims=1),dims=1), sm)
+                        # # normal error bars have no meaning here, beacuse we want to compare within individual mice
+                        # # so we show here the CV errors improved by the mouse-average
+                        # e = @movingaverage(dropdims(mean(accuraciesall[:,bx,sx,rx,:,3],dims=1)/sqrt(nmice),dims=1), sm)
+                        # plot!(ax,timestamps,m,ribbon=e,lw=3,color=colors[bx], alpha=alphas[rx], fillalpha=0.1,
+                        #     label=relevancylabels[rx]*", "*consistencylabels[bx])
+                        plot!(ax,legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing)
+                        # xlims!(ax,-1.2,4.2)
+                        ylims!(ax,0.3,1.25)
+                        yticks!(ax,0.5:0.25:1)
+                        if bx==1
+                            # ylabel!(ax, "accuracy");
+                            plot!(ax,left_margin=50*Plots.px)
+                        end
+                        ylabel!(ax, ["visual","auditory"][sx]*" stimulus\naccuracy");
+                        title!(ax, ["behaviour $(relevancylabels[rx])\nmouse $mx",""][sx])
+                        if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
+                        if mx==1 && sx==1 @panellabel ax ["C", "D"][rx] -0.25 1.15 end
+                    end
+                end
+            end
+        end
+    end
+
+
+
+    
+    
+    
+    
+    
+    plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)
+    display(axs)
+
+    if config[:publishfigures]
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure2-$(figurepostfix).png"))
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure2-$(figurepostfix).pdf"))
+    end
+
+end
+
+
+
+
+
+
+
+
+function supplementaryfigure3()
+
+    
+    figurepostfix = "choice,lickcontrol"
+    @info "making supplementary figure 3" figurepostfix
+
+
+    # right 2×2 block: mouse performance and suppression
+
+    # accuracies  is (nstates,nmodalities,nrelevancies,ntimestamps,3)               (last is stats)
+    # coefficients  is (nstates,nmodalities,nrelevancies,ntimestamps,nneurons+1)      # last is intercept
+    # projections is (nstates,nmodalities,nrelevancies,2,ntimestamps,3)             (2 is gonogo, last is stats)
+    accuraciesallareas = []
+    # colors = [:fuchsia :gold; :purple  :darkorange]       #  vis-aud × consistency
+    colorsangles = [:deepskyblue :blue; :lime :green]     # relevancy x stimulus
+    colorslick = [:black, :red]                            # lick, no-lick
+    alphas = [1.0 0.3]
+    labelsrelevancy = ["relevant","irrelevant"]
+    labelsconsistency = ["consistent","exploratory"]
+    labelsstimulus = ["visual","auditory"]
+    # colors = [:deepskyblue :green; :blue :lime]     # relevancy x stimulus
+    sm = 31 # smoothing window
+
+
+    brainarea = "ACC"
+    
+    mouseids = collectsubjectids(brainarea)
+    nmice = length(mouseids)
+    timestamps = nothing
+    timestampindices = nothing
+    coefficientsall = []
+    projectionsall = []
+    ntrialsprojectionall = []
+    accuracieslickall = []
+    ntrialslickall = []
+    accuraciesnolickall = []
+    ntrialsnolickall = []
+    accuraciesfullall = []
+
+    for mouseid in mouseids
+        # choice geometry
+        @load(config[:cachepath]*"subspace/decode,choicegeometry-$(string(mouseid)).bson", @__MODULE__, timestamps, accuracies, coefficients)
+        push!(coefficientsall, coefficients) 
+        
+
+        # predictive choice geomertry (projecting late stimulus related activity onto choice-less early stimulus subspaces)
+        @load(joinpath(config[:cachepath],"subspace/","choicegeometry,predictive-$(string(mouseid)).bson"), @__MODULE__, timestamps, timestampindices, projections, ntrials)
+        push!(projectionsall, projections)
+        push!(ntrialsprojectionall, ntrials)
+
+        # lick control
+        @load(joinpath(config[:cachepath],"subspace/","suppressionbehaviour,lickcontrol-$(string(mouseid)).bson"), @__MODULE__,
+                        accuracies, ntrials)
+        push!(accuracieslickall, accuracies)
+        push!(ntrialslickall, ntrials)
+
+        @load(joinpath(config[:cachepath],"subspace/","suppressionbehaviour,nolickcontrol-$(string(mouseid)).bson"), @__MODULE__,
+            accuracies, ntrials)
+        push!(accuraciesnolickall, accuracies)
+        push!(ntrialsnolickall, ntrials)
+
+        @load(joinpath(config[:cachepath],"subspace/","suppressionbehaviour-$(string(mouseid)).bson"), @__MODULE__,
+                        accuracies)
+        push!(accuraciesfullall, accuracies)
+    end
+
+    ntimestamps = length(timestamps)
+    accuracieslickall = @catvecleftsingleton accuracieslickall
+    projectionsall = @catvecleftsingleton projectionsall
+    ntrialsprojectionall = @catvecleftsingleton ntrialsprojectionall
+    ntrialsprojectionall = Int16.(ntrialsprojectionall)
+    ntrialslickall = @catvecleftsingleton ntrialslickall
+    ntrialslickall = Int16.(ntrialslickall)
+    accuraciesnolickall = @catvecleftsingleton accuraciesnolickall
+    ntrialsnolickall = @catvecleftsingleton ntrialsnolickall
+    ntrialsnolickall = Int16.(ntrialsnolickall)
+    accuraciesfullall = @catvecleftsingleton accuraciesfullall
+
+
+    msps = []     # subplot collection per mouse
+    for (mx, mouseid) in enumerate(mouseids)
+
+        axs = plot(layout=(6,1),size=(1*350, 6*300), grid=false, legend=false, dpi=dpi)
+                # , left_margin=20*Plots.px, bottom_margin=15*Plots.px, top_margin=60*Plots.px, right_margin=20*Plots.px)
+        
+        
+
+
+
+        # partial neural activity prediction
+
+        @load(config[:cachepath]*"subspace/predict,neurons-$(string(mouseid)).bson", @__MODULE__, timestamps, R2s)
+
+        R2s[R2s.<0] .= NaN
+        predictorcombinations = [ [1], [2], [4], [1,4], [2,4], [3], [1,2,3], [1,2,3,4]  ]
+        labelscombinations = ["visual","audio","decision","visual+decision","audio+decision","context","visual-audio-context","visual-audio-context+reward"]
+            includeincompare = [1,2,3,4,5]
+        nincludeincompare = length(includeincompare)
+        colorscombinations = [:dodgerblue :lime :darkorange :purple :olive :mediumvioletred :grey :gold]
+    
+        labelscontexts = ["all", "visual", "auditory"]
+        # trialscontexts = [trues(ntrials), triallist[!,:context] .== "visual", triallist[!,:context] .== "audio" ]
+        for (ix,i) in enumerate(includeincompare)                   # 1:ncombinations
+            if i in [1,3,4]
+                cx = 2
+                m = [ mean(R2s[i,cx,t,R2s[i,cx,t,:,1].>0,1]) for t in axes(R2s,3)]
+                plot!(axs[1+4], timestamps, @movingaverage(m,11), lw=2, color=colorscombinations[i], label=labelscombinations[i])
+            end
+            if i in [2,3,5]
+                cx = 3
+                m = [ mean(R2s[i,cx,t,R2s[i,cx,t,:,1].>0,1]) for t in axes(R2s,3)]
+                plot!(axs[2+4], timestamps, @movingaverage(m,11), lw=2, color=colorscombinations[i], label=labelscombinations[i])
+            end
+        end
+
+        for sx in 1:2
+            cx = sx+1
+            ax = axs[sx+4]
+            @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
+            plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
+            ylims!(ax, 0, 0.5)
+            # title!(ax,["visual partial","auditory partial"][sx]*"\n$(labelscontexts[cx]) context")
+            if mx==1 ylabel!(ax,["visual","auditory"][sx]*" R²") end
+            xlabel!(ax,"time (s)")
+            if sx==1
+                plot!(ax, top_margin=40*Plots.px)
+                @panellabel ax ["I","J","K","L"][mx] -0.25 1.2
+            end
+        end
+
+
+        # stats
+        for sx in 1:2
+            cx = sx            # each stimulus in its relevant context
+            c = Float64[]
+            d = Float64[]
+            ts = Int[]
+            for t in axes(R2s,3)
+                cc = R2s[sx+3,cx,t,:,1].>0    # conditions for valid predictable neurons
+                cd = R2s[3,cx,t,:,1].>0
+                if sum(cd)>0 && sum(cc)>0       # if both lines are valid, fill in
+                    push!(c, mean(R2s[sx+3,cx,t,cc,1]) )
+                    push!(d, mean(R2s[3,cx,t,cd,1]) )
+                    # push!(ts, timestamps[t])   # save timepoints for diagnostics
+                end
+            end
+            c = @movingaverage(c,21)
+            d = @movingaverage(d,21)
+            # p = pvalue(UnequalVarianceTTest(c,d)) / 2     # whether choice and choice+stimulus differ
+            p = pvalue(OneSampleTTest(c-d)) / 2      # mean - mean will be >, so we are checking only for >0,  one-tailed
+            @info "$mouseid R² -> differs -> $(labelsstimulus[sx]) no.t.=$(length(c))" p m=mean(c)-mean(d)
+            # display(plot(ts,[c d]))
+            p < 1e-12 ? ps = "p<10⁻¹²" : ps = "p=$(round(p,digits=3))"
+            p < 1e-4 && p > 1e-12 ? ps = "p<10⁻⁴" : nothing
+            annotate!(axs[sx+4], -1.3, 0.04, text("$(ps)", :left, :bottom, 8))
+        end
+        
+
+
+
+        # choice geometry
+
+        # for sx in 1:2         # stimulus modalities
+        #     ax = axs[2+sx]
+        #     @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
+        #     angleslist = []
+        #     for rx in 2:-1:1           #relevant rx=1, irrelevant rx=2
+        #         # rx = 2 - (sx==cx)  # 
+        #         cx = 2 - (sx==rx) #  contexts
+        #         angles = angleofvectors(coefficientsall[mx][sx,cx,:,1:end-1,1], coefficientsall[mx][3,cx,:,1:end-1,1])            # end-1 -> we don't needt the bias coefficient for angle
+        #         anglese = dropdims(sqrt.( sum(  coefficientsall[mx][sx,cx,:,1:end-1,1] .* coefficientsall[mx][3,cx,:,1:end-1,3], dims=2).^2 +
+        #                            sum(  coefficientsall[mx][3,cx,:,1:end-1,1] .* coefficientsall[mx][sx,cx,:,1:end-1,3], dims=2).^2 ),dims=2)
+                                               
+        #         anglesm = @movingaverage(angles,sm)
+        #         # anglesem = @movingaverage(anglese,sm)
+        #         plot!(ax, timestamps, anglesm, lw=3, color=colorsangles[sx,rx], label=labelsstimulus[sx]*" "*labelsrelevancy[rx])
+        #         hline!(ax,[90], ls=:dash, color=:darkgray, label=nothing)
+        #         ylims!(ax, 0, 150)
+        #         yticks!(ax, 0:30:150)
+        #         push!(angleslist, angles[151:450]) # select stimulus presentation only for stats
+        #     end
+        #     pd = pvalue(OneSampleTTest(angleslist...)) / 2     # whether rel and irrelev differ
+        #     p90 = pvalue(OneSampleTTest(angleslist[2] .- 90))  # whether in irrelevant, is close to 90 degrees
+        #     @info "$mouseid $(labelsstimulus[sx])" pd p90
+
+        #     plot!(ax, legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8)
+        #     if sx==2 xlabel!(ax,"time from stimulus onset [s]") end
+        #     if mx==1 ylabel!(ax,"angle between\n stim. & choice [°]") end
+        #     if sx==1
+        #         # title!(ax, "$(string(mouseid))")
+        #         @panellabel ax ["E","F","G","H"][mx] -0.25 1.4
+        #     end
+        #     if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
+        # end
+
+
+
+
+        # predictive choice geometry
+
+        colors = [:dodgerblue :darkblue; :lime :darkgreen]
+        for (sx, stimulus) in enumerate(labelsstimulus)
+            ax = axs[2+sx]
+            for (rx,relevance) in enumerate(labelsrelevancy)
+                m = abs.(projectionsall[mx,sx,rx,1,:,1]-projectionsall[mx,sx,rx,2,:,1])
+                e = projectionsall[mx,sx,rx,1,:,3]+projectionsall[mx,sx,rx,2,:,3]
+                m = @movingaverage(m,sm)
+                e = @movingaverage(e,sm)
+                plot!(ax, timestamps, m, ribbon=e, lw=2, color=colors[sx,rx], label=labelsrelevancy[rx])
+                if mx==1 ylabel!(ax, "early $(labelsstimulus[sx]) proj.\ngo-nogo abs. diff.") end
+                if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
+                plot!(ax, legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing)
+                @info "$(labelsstimulus[sx]) $(labelsrelevancy[rx])" gn=ntrialsprojectionall[mx,sx,rx,:]
+            end
+            @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
+            @nolinebackground(ax, timestamps[timestampindices[1]], timestamps[timestampindices[end]], nothing, bg=nothing)
+            hline!(ax,[0],ls=:dash,color=:darkgray, label=nothing)
+            ylims!(ax, -5, 45)
+            if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
+            if sx==1 @panellabel ax ["E","F","G","H"][mx] -0.25 1.1 end
+        end
+
+
+
+
+        # lick controlled decoding
+        colors = [:purple :darkorange]                         # consistency
+        for (lx, (accuraciesall,ntrialsall)) in enumerate(zip((accuracieslickall,accuraciesnolickall),(ntrialslickall,ntrialsnolickall)))
+            if lx==2 continue end     # no concern with no lick
+            lickcontrollabel = ["lick","no lick"][lx]
+            for sx in 1:2        # stimulus modalities
+                ax = axs[sx]
+                vspan!(ax,[config[:stimulusstart],config[:stimulusend]], color=:grey, alpha=0.3, label=nothing)
+                vline!(ax,[config[:waterstart]],color=:white, alpha=0.5, lw=2, label=nothing)
+                hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
+                for bx in 2:2 # 1:2        # consistency
+                    for rx in 2:2 # 1:2    # relevancies
+                        @info "$mouseid" sx e="exploratory lick only tr=$(ntrialslickall[mx,bx,sx,rx,1]+ntrialsnolickall[mx,bx,sx,rx,1]) (go:nogo=$(ntrialsall[mx,bx,sx,rx,3]):$(ntrialsall[mx,bx,sx,rx,4]))" c="consistent lick only tr=$(ntrialslickall[mx,1,sx,rx,1]+ntrialsnolickall[mx,1,sx,rx,1]) (go:nogo=$(ntrialsall[mx,1,sx,rx,3]):$(ntrialsall[mx,1,sx,rx,4]))"
+
+                        if ntrialsall[mx,bx,sx,rx,1]<10 continue end
+                        m = @movingaverage(accuraciesall[mx,bx,sx,rx,:,1],sm)
+                        e = @movingaverage(accuraciesall[mx,bx,sx,rx,:,3],sm)
+                        mfa = @movingaverage(accuraciesfullall[mx,bx,sx,rx,:,1],sm)
+                        efa = @movingaverage(accuraciesfullall[mx,bx,sx,rx,:,3],sm)
+                        mfacons = @movingaverage(accuraciesall[mx,1,sx,rx,:,1],sm) # consistent control
+                        efacons = @movingaverage(accuraciesall[mx,1,sx,rx,:,3],sm)
+                        # normal error bars have no meaning here, beacuse we want to compare within individual mice
+                        # so we show here the CV errors improved by the mouse-average
+                        # e = @movingaverage(dropdims(mean(accuraciesall[mx:mx,bx,sx,rx,:,3],dims=1)/sqrt(nmice),dims=1), sm)
+                        plot!(ax,timestamps,m,ribbon=e,lw=1,color=colorslick[lx], alpha=0.8, fillalpha=0.1,
+                            label="exploratory, $(lickcontrollabel) only trials")
+                        
+                        # if lx==2
+                        plot!(ax,timestamps,mfa,ribbon=efa,lw=3, color=colors[bx], alpha=alphas[rx], fillalpha=0.1,
+                            label="exploratory, all trials")
+                        
+                        if ntrialsall[mx,1,sx,rx,1]<10 continue end
+                        plot!(ax,timestamps,mfacons,ribbon=efacons,lw=3, color=:fuchsia, alpha=alphas[rx], fillalpha=0.1,
+                            label="consistent, $(lickcontrollabel) only trials")
+                        # end
+                    end
+                end
+                plot!(ax,legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8)
+                xlims!(ax,-1.5,4.5)
+                ylims!(ax,0.3,1.25)
+                yticks!(ax,0.5:0.25:1)
+                plot!(ax, left_margin=30*Plots.px)
+                if mx==1 ylabel!(ax, "stimulus accuracy"); plot!(ax,left_margin=50*Plots.px) end
+                if sx==1 plot!(ax, top_margin=60*Plots.px) end
+                if sx==2 xlabel!(ax, "time from stimulus onset [s]"); plot!(ax, bottom_margin=40*Plots.px) end
+                # title!(ax, ["$(string(mouseid))\n$(labelsrelevancy[2]) $(labelsconsistency[2])\n",""][sx]*labelsstimulus[sx]*" stimulus")
+                title!(ax, ["$(labelsrelevancy[2]) $(labelsconsistency[2])\n",""][sx]*labelsstimulus[sx]*" stimulus")
+                
+                if sx==1 @panellabel ax ["A","B","C","D"][mx] -0.25 1.6 end
+                if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
+            end
+        end
+        
+        plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)#, ytickfonthalign=:left, xtickfontvalign=:bottom, xguidevalign=:top)
+        
+        push!(msps,axs)
+    end     
+
+    maxs = plot(msps..., layout=(1,nmice), size=(nmice*350, 6*300), dpi=dpi)
+    display(maxs)
+
+
+    if config[:publishfigures]
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure3-$(figurepostfix).png"))
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure3-$(figurepostfix).pdf"))
+    end
+
+end
+
+
+
+
+function statshelper()
+
+    
+
+
+
+    mouseids = collectsubjectids("ACC")
+    # mouseids = ["AC006"]
+    nmice = length(mouseids)
+    
+    triallists = []
+    ifrs = []
+    for mouseid in mouseids
+
+        @info "mouseid" mouseid
+        nwbfile,_ = loadnwbdata(mouseid)
+        triallist = nwbdf(nwbfile.trials)
+        filter!(:difficulty=>u->u=="complex",triallist)
+        addcongruencycolumn!(triallist)
+
+
+
+
+        neuronsspiketimeslist = gettrialrelativespiketimes(triallist, nwbfile.units)         # get spikes for trials
+        ntrials = length(neuronsspiketimeslist)
+        nneurons = length(neuronsspiketimeslist[1])
+        trialwidth = config[:stimuluslength] + abs(config[:preeventpadding]) + abs(config[:posteventpadding])
+
+
+        # selecting the neurons to display
+        rastertriallist = [30:35,82:87]      # visual and auditory example trials
+
+        @load(joinpath(config[:cachepath],"subspace/","mutualswitchsubspaces-$(string(mouseid)).bson"),  @__MODULE__,
+                modalityunitssingle, modalityindexsingle, contextindex)
+
+                
+        # modalityindex = modalityindexsingle[:,1] - modalityindexsingle[:,2]
+        modalityorder = [sortperm(modalityindexsingle[:,g]) for g in 1:2 ]
+        ncellneighbours = 10
+        bestvisualcells = [modalityorder[1][1:1+ncellneighbours-1], modalityorder[2][1:1+ncellneighbours-1]]         # go and nogo best
+        bestaudiocells = [modalityorder[1][end-ncellneighbours+1:end], modalityorder[2][end-ncellneighbours+1:end]]
+        selectedcells = [bestvisualcells[2][1] bestvisualcells[1][2]; bestaudiocells[1][6] bestaudiocells[2][3]]          # stim × gonogo
+
+        
+
+        # firing rate statistics
+        ts, ifr = smoothinstantenousfiringrate(neuronsspiketimeslist, config[:stimuluslength], binsize=config[:dt])
+
+        push!(triallists, triallist)
+        push!(ifrs, ifr)
+    end
+
+    nneurons = map(mouseid->size(ifrs[mouseid],3), 1:nmice)
+    @info "all neurons" nneurons sum(nneurons)
+
+    
+
+    # mean and variance of firing rate responsiveness to stimuli in the two contexts
+    precision = 6
+    prestim = 1:150
+    earlystim = 151:200
+    midstim = 251:300
+
+    ns = zeros(Int,nmice,2,2,2,2,2)         # timeperiods, <>, cx, stim, go/nogo
+    frcomp = zeros(2,2,2,2,2,4)         # timeperiods, <>, cx, stim, go/nogo, stats+pvalue
+    for (px,stimchangepos) in enumerate([1,2])          # compare at between different time period pairs: 1: early-pre, 2: mid-early
+        for (ox,op) in enumerate((<,>))
+            for (cx,context) in enumerate(["visual","audio"]),
+                 (sx,(col,vals)) in enumerate(zip( (:degree,:freq),((45,135),(5000,10000)) )),
+                   (gx,val) in enumerate(vals)
+                frp = []; fre = []; frm = []     # firing rate at periods
+                for mx in 1:nmice
+                    mask = (triallists[mx][!,:context].==context) .& (triallists[mx][!,col].==val)
+
+                    # average over spec. timepoints -> (trials × neurons)
+                    p = mean(ifrs[mx][mask,prestim,:],dims=2)[:,1,:]
+                    e = mean(ifrs[mx][mask,earlystim,:],dims=2)[:,1,:]
+                    m = mean(ifrs[mx][mask,midstim,:],dims=2)[:,1,:]
+
+
+                    # calculate trial-averages and 2nd order stats
+                    mp = mean(p,dims=1)[1,:]; sp = std(p,dims=1)[1,:]; ep = sp / sqrt(size(p,1))
+                    me = mean(e,dims=1)[1,:]; se = std(e,dims=1)[1,:]; ee = se / sqrt(size(e,1))
+                    mm = mean(m,dims=1)[1,:]; sm = std(m,dims=1)[1,:]; em = sm / sqrt(size(m,1))
+
+
+                    if stimchangepos==1          # check the mean firing rate over trials for each neuron
+                        maskop = op.(me,mp)      # and compare them between varioous time periods
+                    else
+                        maskop = op.(mm,me)
+                    end
+
+                    # add op-conditioned neurons time-resolved response to the list as bulk concatenation
+                    frp = [frp; reshape(p[:,maskop], :)]
+                    fre = [fre; reshape(e[:,maskop], :)]
+                    frm = [frm; reshape(m[:,maskop], :)]
+                    # frp = [frp; p[:,maskop]]
+                    # fre = [fre; e[:,maskop]]
+                    # frm = [frm; m[:,maskop]]
+
+                    ns[mx,px,ox,cx,sx,gx] = sum(maskop)
+                end
+                # mp = mean(frp,dims=1)[1,:]; sp = std(frp,dims=1)[1,:]; ep = sp / sqrt(size(frp,1))
+                # me = mean(fre,dims=1)[1,:]; se = std(fre,dims=1)[1,:]; ee = se / sqrt(size(fre,1))
+                # mm = mean(frm,dims=1)[1,:]; sm = std(frm,dims=1)[1,:]; em = sm / sqrt(size(frm,1))
+                # mp = mean(frp); sp = std(frp); ep = sp / sqrt(size(frp,1))
+                # me = mean(fre); se = std(fre); ee = se / sqrt(size(fre,1))
+                # mm = mean(frm); sm = std(frm); em = sm / sqrt(size(frm,1))
+
+                # frcomp[px,ox,cx,sx,gx,:] = [ f(    [   (me - mp), (mm - me)   ][px] )
+                #         for f in ( mean, std, u->std(u)/sqrt(sum(ns[:,px,ox,cx,sx,gx])) ) ]  ./ [mp, me][px]
+                frcomp[px,ox,cx,sx,gx,1:3] = [ f(    [   (fre - frp), (frm - fre)   ][px] )
+                        for f in ( mean, std, u->std(u)/sqrt(sum(ns[:,px,ox,cx,sx,gx])) ) ]  ./ mean([frp, fre][px])
+                frcomp[px,ox,cx,sx,gx,4] = pvalue(OneSampleTTest([   (fre - frp)./mean(frp), (frm - fre)./mean(fre)   ][px]))
+            end
+        end
+    end
+
+
+
+    # go nogo              ×        mean +/- sem
+    for px in 1:2, ox in 1:2
+        mfrr = [ mean( frcomp[px,ox,1,1,:,[1,3,4]], dims=1)[1,:] ;; mean( frcomp[px,ox,2,2,:,[1,3,4]], dims=1)[1,:] ]
+        mfri = [ mean( frcomp[px,ox,1,2,:,[1,3,4]], dims=1)[1,:] ;; mean( frcomp[px,ox,2,1,:,[1,3,4]], dims=1)[1,:] ]
+
+        # relevant and irrelevant:
+        nr = [ sum(ns[:,px,ox,1,1,:],dims=1)[1,:];; sum(ns[:,px,ox,2,2,:],dims=1)[1,:] ]        # relevant, (modality by gonogo)
+        ni = [ sum(ns[:,px,ox,1,2,:],dims=1)[1,:];; sum(ns[:,px,ox,2,1,:],dims=1)[1,:] ]        # irrelevant
+        @info "fr compare $px-$ox" nr mfrr' ni mfri'
+    end
+
+
+    # find cells that have simultaneously larger response in relevant than in irrelevant context
+    collectedcells = zeros(2,2)      # stimulus, go/nogo
+    contextlabels = ["visual","audio"]
+    for mx in 1:nmice
+
+
+        # collect cells that are larger in relevant
+        # first collect > cell mask for relevant, then for irrelevant context
+        frc = zeros(3,2,2,2,nneurons[mx],4)         # rx, stim, go/nogo, stats+pvalue
+        for (sx,(col,vals)) in enumerate(zip( (:degree,:freq),((45,135),(5000,10000)) )),
+                (gx,val) in enumerate(vals)
+
+                
+                for cx in (sx,3-sx) # relevant, irrelevant
+                    rx = 2 - (cx==sx)
+                    mask = (triallists[mx][!,:context].==contextlabels[cx]) .& (triallists[mx][!,col].==val)
+                
+                    # average over spec. timepoints -> (trials × neurons)
+                    p = mean(ifrs[mx][mask,prestim,:],dims=2)[:,1,:]
+                    e = mean(ifrs[mx][mask,earlystim,:],dims=2)[:,1,:]
+                    m = mean(ifrs[mx][mask,midstim,:],dims=2)[:,1,:]
+
+                    frc[:,rx,sx,gx,:,1] = @asarray [ mean(a,dims=1)[1,:] for a in (p,e,m) ]
+                    frc[:,rx,sx,gx,:,2] = @asarray [ std(a,dims=1)[1,:] for a in (p,e,m) ]
+                    frc[:,rx,sx,gx,:,3] = @asarray [ std(a,dims=1)[1,:]/sqrt(size(a,1)) for a in (p,e,m) ]
+        
+                end
+        end
+        
+        # find cells that are consistent in the direction for relevance-irrelevance at the late stimulus period with 2 sem
+
+        tp = 3 # time period    pre early mid
+        for sx in 1:2
+            for gx in 1:2
+                # mask = frc[tp,1,sx,gx,:,1] - frc[tp,1,sx,gx,:,3] *2 .> frc[tp,2,sx,gx,:,1] + frc[tp,2,sx,gx,:,3] *2
+                mask = frc[tp,1,sx,gx,:,1] + frc[tp,1,sx,gx,:,3] *2 .< frc[tp,2,sx,gx,:,1] - frc[tp,2,sx,gx,:,3] *2
+                collectedcells[sx,gx] += sum(mask)
+            end
+        end
+
+    end
+    @info "rel>irrel" collectedcells
+    
+end
+
+

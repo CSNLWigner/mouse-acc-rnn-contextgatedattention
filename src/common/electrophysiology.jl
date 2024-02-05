@@ -2,7 +2,7 @@ __precompile__()
 module ElectroPhysiology
 
 export gettrialrelativespiketimes
-export smoothinstantenousfiringrate
+export countspikes,smoothinstantenousfiringrate
 export PSTH
 
 export generatepoissonpointprocess
@@ -43,8 +43,26 @@ end
 
 
 
+"""
+count number of spikes in bins in a
+vector (neurons) of vector of spike times
+"""
+function countspikes(neuronsspiketimes::Vector{Vector{Float64}};
+                       bin=0.01, starttime=0., stoptime=Inf)
 
+    starttime = starttime==0 ? minimum(minimum.(neuronsspiketimes)) : starttime
+    stoptime = stoptime==Inf ? maximum(maximum.(neuronsspiketimes)) : stoptime
+    starttime = floor(starttime / bin) * bin
+    stoptime = ceil(stoptime / bin) * bin
 
+    timestamps = starttime:bin:stoptime
+    
+    activity = zeros(length(timestamps),length(neuronsspiketimes))
+    for (tx,t) in enumerate(timestamps)
+        activity[tx,:] = hcat([ map(nst->sum( (nst.>=t) .& (nst.<t+bin) ), neuronsspiketimes)]...)' ./ bin    # yields timebins × neurons matrix
+    end
+    return collect(timestamps),activity
+end
 
 
 

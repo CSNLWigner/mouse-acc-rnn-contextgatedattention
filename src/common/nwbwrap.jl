@@ -4,16 +4,18 @@ module NWBWrap
 
 
 export pythontojulia_array, pja
+export pythontojulia_eagerdata, pjed
 export pythontojulia_dataframe, pjdf
 export nwbobjecttodataframe, nwbdf
 export timeseriestodataframe, tsdf
 export timeintervalstodataframe, tidf
 
-export PyObject, nwb
+export PyObject, np, pd, nwb, hdmf
 
 
 using PyCall
 np = PyNULL()
+pd = PyNULL()
 nwb = PyNULL()
 hdmf = PyNULL()
 
@@ -25,9 +27,9 @@ pd = PyNULL()
 
 function __init__()
     copy!(np, pyimport("numpy"))
+    copy!(pd, pyimport("pandas"))
     copy!(nwb, pyimport("pynwb"))
     copy!(hdmf, pyimport("hdmf"))
-    copy!(pd, pyimport("pandas"))
 end
 
 
@@ -48,6 +50,16 @@ end
 pja = pythontojulia_array
 
 
+
+#pyobject hdmf dataset to array
+function pythontojulia_eagerdata(pydata::PyCall.PyObject)
+    if py"hasattr($pydata,'data')"
+        py"$(pydata).data[:]"
+    else
+        error("pythontojulia_eagerdata: pydata does not have a data field")
+    end
+end
+pjed = pythontojulia_eagerdata
 
 
 

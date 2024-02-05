@@ -30,7 +30,6 @@ end
 
 
 function loadnwbdata(mouseid::String)
-    @info "loadnwbdata" nwb  fn=joinpath(config[:rawdatapathprefix], config[:nwbdatapath], mouseid * ".nwb")
     io = nwb.NWBHDF5IO(joinpath(config[:rawdatapathprefix], config[:nwbdatapath], mouseid * ".nwb"), mode="r")
     nwbfile = io.read()
     return nwbfile,io
@@ -515,4 +514,323 @@ function modellapse(target,λ=0.,r=[false,true])
     p[target.==r[1]] .= 1 - λ
     p[target.==r[2]] .= λ
     return p
+end
+
+
+
+function generatemovingaveragestatistics_template(;nrepeats=100000,pchoicebias=0.75)
+
+    ntrials = 70
+    nmodalities = 2
+    nrepeats = 100
+
+    # simulate nrepeats two-context sesssion stimuli
+    # generate random binomial choices at a biased p (e.g. lick bias p>0.5)
+    stimuli = rand(Binomial(1, 0.5), ntrials, nmodalities, nrepeats)
+    choice = rand(Binomial(1, pchoicebias), ntrials, nrepeats)
+
+    # get stimuli congruency information
+
+
+end
+
+
+
+
+
+function moving_average_trials(success, masks; ma=20)
+    # success is a n_trials array of correct = true, incorrect = false
+    # mask is  (n_trials, {conggo,inconggo,congnogo,incongnogo}) array of booleans
+    ntrials,nmasks = size(masks)
+    slidingwindowperformance = zeros(size(masks))
+    for t in 1:ntrials
+        sl = max(1,t-ma÷2):min(t+ma÷2,ntrials)
+        # get the success rate for the trials within the ma window with the index slice
+        # but separately for each mask
+        for imask in 1:nmasks
+            # print(t,imask,sl,(((success==1) & masks[:,imask])[ sl ]))
+            slidingwindowperformance[t,imask] = sum((success[sl].==1) .& masks[:,imask][sl])/sum(masks[:,imask][sl])
+        end
+    end
+    return slidingwindowperformance
+end
+
+function consistent_masks(stimuli; relevant_idx=1)
+    mask_congruent =  stimuli[:,1:1,:].==stimuli[:,2:2,:]
+    mask_go = stimuli[:,relevant_idx:relevant_idx,:].==1
+    masks =  [mask_congruent .& mask_go, .~mask_congruent .& mask_go, mask_congruent .& .~mask_go, .~mask_congruent .& .~mask_go]
+    masks = hcat(masks...)
+    # masks = permutedims(hcat(masks...), (2, 1, 3))
+    return masks
+end
+
+function segment_ma_consecutive(x)
+    # find consecutive segments of x=1..
+    # return the length of all segments
+    consecutives = Int[]
+    flag = x[1]==1
+    c = 0
+    for i in eachindex(x)
+        if x[i]==1 && !flag
+            flag = true
+        end
+        if x[i]==1 && flag
+            c += 1
+        end
+        if x[i]==0 && flag
+            push!(consecutives, c)
+            c = 0
+            flag = false
+        end
+        if i==length(x) && flag
+            push!(consecutives, c)
+        end
+    end
+    return consecutives
+end
+
+
+
+function generatemovingaveragestatistics(mouseids::Vector{Symbol})
+
+    # ntrials = 70
+    nmodality = 2
+    ntrialtypemasks = 4
+    relevant_idx = 1
+    nrepeats = config[:generativeconsecutivesamplingrepeats]
+
+    probabilityconsistentperiods = Dict()
+    for mouseid in mouseids
+        # if mouseid != :AC006 continue end
+        probabilityconsistentperiods[mouseid] = Dict()
+
+        # load mouse data to get number of trials in context, and choice bias
+        nwb,io = loadnwbdata(mouseid)
+        trials = nwbdf(nwb.trials)
+        filter!(:difficulty=>u->u=="complex",trials)
+        addcongruencycolumn!(trials)
+
+        for context in ["visual","audio"]
+            ntrials = nrow(trials[trials[!,:context].==context,:])
+            
+            # pchoice bias for incongruent trials
+            pchoicebias = 1. .- mean(trials[(trials[!,:context].==context) .& (trials[!,:congruency].=="incongruent"),:action])
+
+            # generate repeated stimuli
+            stimuli = rand(Binomial(1, 0.5), ntrials, nmodality, nrepeats)
+            #  calculate successes and moving averages
+            choices = zeros(ntrials, nrepeats)
+            success = zeros(ntrials, nrepeats)
+            success_ma = zeros(ntrials, ntrialtypemasks+1, nrepeats)
+
+            # use lick bias for bernoulli estimate
+            choices = rand(Binomial(1, pchoicebias), ntrials, nrepeats)
+            success = (stimuli[:, relevant_idx, :] .== choices)
+
+            # change choices of congruent trials to always successful
+            maskcongruent = stimuli[:,1,:].==stimuli[:,2,:]
+            success[maskcongruent] .= 1
+
+            # calculate consistency: moving average of successes
+            masks = consistent_masks(stimuli)
+            Threads.@threads for rx in 1:nrepeats
+                # success[masks[:,0,rx],rx,ux] = 1
+                # success[masks[:,2,rx],rx,ux] = 1
+                success_ma[:, 1:4, rx] = moving_average_trials(success[:, rx], masks[:, :, rx], ma=20)
+            end
+            
+            #  calculate consistent trials: where all four are logically true
+            success_ma[:,5,:] = all(success_ma[:,1:4,:] .> 0.5, dims=2)
+
+            # count lengths of consecutive successes blocks
+            consecutive_ma = []
+            for rx in 1:nrepeats
+                push!(consecutive_ma, segment_ma_consecutive(success_ma[:,5,rx]))
+            end
+
+            
+            # count occurrences and lengths of consecutive successes
+            num_ntrials_successes = zeros(Int,ntrials)   # number of trials with t successes
+            consecutive_counts = zeros(Int,nrepeats, ntrials)
+            Threads.@threads for rx in 1:nrepeats
+                t = Int(sum(success_ma[:,5,rx]))
+                if t > 0
+                    num_ntrials_successes[t] += 1
+                end
+                for c in consecutive_ma[rx]
+                    consecutive_counts[rx,c] += 1
+                end
+            end
+
+            # probabilities
+            # probabilities of having n success_mas dependent on n
+            prob_ntrials_successes = num_ntrials_successes / nrepeats
+
+            # calculate the probability of having exactly 1, 2, etc. number of consecutive successes of length n
+            prob_exactly_consecutive_length = zeros(ntrials, ntrials)
+            Threads.@threads for rx in 1:nrepeats
+                for t in 1:ntrials
+                    c = consecutive_counts[rx,t]
+                    if c > 0
+                        prob_exactly_consecutive_length[t,c] += 1
+                    end
+                end
+            end
+            prob_atleastone_consecutive_length = dropdims(sum(prob_exactly_consecutive_length, dims=2),dims=2) / nrepeats
+
+            probabilityconsistentperiods[mouseid][context] = Dict(:ntrials=>ntrials, :pchoicebias=>pchoicebias,
+                                                          :prob_ntrials_successes=>prob_ntrials_successes,
+                                                          :prob_atleastone_consecutive_length=>prob_atleastone_consecutive_length)
+        end
+    end
+    @info "" probabilityconsistentperiods
+    @save(joinpath(config[:cachepath], "behaviour", "probabilityconsistentperiods,incongruentbias.bson"), probabilityconsistentperiods)
+end
+
+
+
+function calculatemovingaveragestatistics(mouseids::Vector{Symbol})
+    # mouse data, calculate the longest consecutive succes ma block
+    consecutivesegmentsmice = Dict()
+
+    for mouseid in mouseids
+        nwb,io = loadnwbdata(mouseid)
+        trials = nwbdf(nwb.trials)
+        filter!(:difficulty=>u->u=="complex",trials)
+        addcongruencycolumn!(trials)
+        maperfs = movingaverageperformancetrialtypes(trials)
+        highperfs = highperformancetrialsmask(maperfs)
+        trials[!,:consistence] = highperfs
+        # @info "" maperfs highperfs trials[!,[:degree,:freq,:congruency,:context,:consistence]]
+        segments = Vector{Int}[]
+        for context in ["visual","audio"]
+            push!(segments, segment_ma_consecutive(trials[trials[!,:context].==context,:consistence]) )
+        end
+        consecutivesegmentsmice[mouseid] = segments
+    end
+    @info "" mouseids consecutivesegmentsmice 
+
+    @save(joinpath(config[:cachepath], "behaviour", "movingaveragestatistics,mice.bson"), consecutivesegmentsmice)
+
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function calculatebehaviouralmodelstatistics(mouseids)
+
+    nmice = length(mouseids)
+    nhighperfs = zeros(nmice,2)
+    ntrials = zeros(nmice,2)
+    fractioncorrects = zeros(nmice,2)
+    lls = zeros(nmice,2,5) # loglikelihoods (nmice, context, models)
+    for (n,mouseid) in enumerate(mouseids)
+        nwbfile,_ = loadnwbdata(mouseid)
+        triallist = nwbdf(nwbfile.trials)
+        filter!(:difficulty=>u->u=="complex",triallist)
+        addcongruencycolumn!(triallist)
+        maperfs = movingaverageperformancetrialtypes(triallist)
+        highperfs = highperformancetrialsmask(maperfs)
+        contextboundary = findfirst(triallist[!,:context].==triallist[end,:context])
+        boundaries = [1 contextboundary-1; contextboundary nrow(triallist)]
+        for (cx,context) in enumerate(["visual","audio"])
+            maskhp = (triallist[!,:context].==context) .&  highperfs 
+            maskhpic =  maskhp .&  (triallist[!,:congruency].=="incongruent")
+
+            # number of consistent trials
+            nhighperfs[n,cx] = sum(maskhp)
+            ntrials[n,cx] = sum(triallist[!,:context].==context)
+            
+            # fraction correct
+            fractioncorrects[n,cx] = sum(triallist[maskhp,:success])/nhighperfs[n,cx]
+
+            # models; need choices data, and model p estimates
+            # choices = actiontable.(triallist[maskhpic,:water],triallist[maskhpic,:success])   # triallist[maskhpic, :action]
+            choices = triallist[maskhpic, :action]
+
+            # zero parameter context opposite
+            targets = triallist[maskhpic, [:degree,:freq][3-cx]] .==  [45,5000][3-cx]   # opposite
+            p = clamp.(.! targets, lowprob, 1-lowprob)
+            lls[n,cx,1] = mean(bernoulliloglikelihood(choices,p))
+
+            # zero parameter context aware
+            targets = triallist[maskhpic, [:degree,:freq][cx]] .==  [45,5000][cx]   # same
+            p = clamp.(.! targets, lowprob, 1-lowprob)
+            lls[n,cx,2] = mean(bernoulliloglikelihood(choices,p))
+             
+            # one parameter mean bias
+            lls[n,cx,3] = mean(bernoulliloglikelihood(choices,mean(choices)))
+            
+            # one parameter bias, based on the targets from context aware
+            targets = triallist[maskhpic, :water]    # go or nogo contextual
+            p = [modelbias(targets,β) for β in -1+2*lowprob:lowprob*2:1-lowprob]
+            clamp!.(p, lowprob, 1-lowprob)
+            llsbias = dropdims(mean(hcat([bernoulliloglikelihood.(choices,pix) for pix in p]...),dims=1),dims=1)
+            lls[n,cx,4] = maximum(llsbias)
+            # βm = (-1+2*lowprob:lowprob*2:1-lowprob)[argmax(llsbias)]
+            
+            # one parameter lapse
+            targets = triallist[maskhpic, :water]    # go or nogo contextual
+            p = [modellapse(targets,λ) for λ in lowprob:lowprob:1-lowprob]
+            clamp!.(p, lowprob, 1-lowprob)
+            llslapse = dropdims(mean(hcat([bernoulliloglikelihood.(choices,pix) for pix in p]...),dims=1),dims=1)
+            lls[n,cx,5] = maximum(llslapse)
+            # λm = (lowprob:lowprob:1-lowprob)[argmax(llslapse)]
+
+            # @info "" mouseid context lls[n,cx,1:2] lls[n,cx,3:5] βm λm
+            # display(plot([-1+2*lowprob:lowprob*2:1-lowprob lowprob:lowprob:1-lowprob],[llsbias llslapse], label=["bias" "lapse"], lw=2, title="$mouseid $context"))
+
+        end
+    end
+
+    if nmice>4 
+        @info "lls NaN" sum(isnan.(lls))
+        lls = lls[1:4,:,:]
+        # replace!(lls, NaN=>missing)
+        # @info "corrected" sum(ismissing.(lls))
+    end
+
+
+
+    @save(joinpath(config[:cachepath], "behaviour","behaviouralstatistics.bson"), ntrials, nhighperfs, fractioncorrects, lls)
+
+    return nhighperfs, ntrials, fractioncorrects, lls
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+If models in config[:machineparameters] are given as "101-105",
+then it translates it to fill out each model like: ["101","102","103","104","105"]
+
+"""
+function fillrange!(machineparameters)
+    # test if we want a range, between first and last
+    if any(machineparameters[:modelids].=="-") || any(machineparameters[:modelids].=="..")
+        machineparameters[:modelids] = [   "0$i" for i in
+                      parse(Int, machineparameters[:modelids][begin]):parse(Int, machineparameters[:modelids][end])   ]
+    end
+    # change to lpad(i,3,"0")
 end

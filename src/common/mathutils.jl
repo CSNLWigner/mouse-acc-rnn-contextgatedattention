@@ -8,7 +8,7 @@ export kde
 export @movingaverage
 export convolve, smooth!, smooth
 export absmax, limsabsmaxnegpos
-export getcorrelation
+export getcorrelation,marcenkopasturlimits
 export gpcovse, gpsample
 export erode1d!, dilate1d!
 export mutualinformation, mutualinformationtable
@@ -236,7 +236,21 @@ function angleofvectors(v1::Vector{<:Number},v2::Vector{<:Number})        #; ret
     s = max(min(1.,s),-1.)
     acos(s) * 180 / π
 end
-
+function angleofvectors(M1::Matrix{<:Number},M2::Matrix{<:Number};dims=2)        #; returnscale=:degree)
+    @assert size(M1)==size(M2) "Matrices must have the same size"
+    adim = dims==1 ? 2 : 1
+    angles = zeros(eltype(M1),size(M1,adim))
+    if dims==1
+        for t in axes(M1,adim)
+            angles[t] = angleofvectors(M1[:,t],M2[:,t])
+        end
+    else
+        for t in axes(M1,adim)
+            angles[t] = angleofvectors(M1[t,:],M2[t,:])
+        end
+    end
+    return angles
+end
 
 
 """
