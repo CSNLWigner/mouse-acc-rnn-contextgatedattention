@@ -283,7 +283,7 @@ function getcorrelation(x,y)
     â = [ x ones(eltype(x),size(x,1))] \ y
     c = HypothesisTests.CorrelationTest(x,y)
     p = pvalue(c)
-    return â, c.r, p
+    return â, c.r, p, c.t
 end
 
 
