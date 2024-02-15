@@ -609,6 +609,7 @@ function figure2()
     @info "" sum(timerange)
     tickpoints = Float64[]
     ps = Float64[]
+    ts = Float64[]
     for (mx,brainarea) in enumerate(["V1","ACC"])
         # individual mice
         d = accuraciesallareas[mx][:,:,:,1,timerange,1] .- accuraciesallareas[mx][:,:,:,2,timerange,1]
@@ -630,10 +631,13 @@ function figure2()
             boxplot!(   ax, barind', d', color=colors, alpha=mean(alphas),
                         outliers=false, whisker_range=1, notch=true,
                         label=[  nothing, [["consistent" "exploratory"] repeat([nothing nothing],1,length(mouseind)-1)]  ][Int(sx+mx==4)+1]   )
-            push!(ps, pvalue(OneSampleTTest(d[1,:],d[2,:])))
+            ttest = OneSampleTTest(d[1,:],d[2,:])
+            push!(ps, pvalue(ttest))
+            push!(ts, ttest.t)
         end
     end
     @info "p" ps
+    @info "t" ts
 
     pss = ifelse.(ps .< 0.0001, "***", "ns")
     psr = pss .*" \n" .* ["p=0.09", "p=0.81", "p<10⁻²⁰", "p<10⁻²⁰"]
@@ -866,8 +870,9 @@ function figure3()
     # stats
     ps = []
     for angle in (angles[:,1,2],angles[:,1,3], angles[:,2,3], angles[:,3,4])
-        @info "" pvalue(OneSampleTTest(angle, 90))
-        push!(ps,pvalue(OneSampleTTest(angle, 90)))
+        ttest = OneSampleTTest(angle, 90)
+        @info "" pvalue(ttest) ttest.t
+        push!(ps,pvalue(ttest))
     end
 
     labels = ["visual","auditory","context","decision","reward"]
@@ -1107,8 +1112,9 @@ function figure4()
     for a in axes(angles,3)
         if a>4 break end
         angle = angles[:,comparetimepoints[a],a]
-        @info "" pvalue(OneSampleTTest(angle, 90))
-        push!(ps,pvalue(OneSampleTTest(angle, 90)))
+        ttest = OneSampleTTest(angle, 90)
+        @info "" pvalue(ttest) ttest.t
+        push!(ps,pvalue(ttest))
     end
 
     labels = ["visual","auditory","context","decision","reward"]
@@ -1327,7 +1333,7 @@ function figure4()
     scatter!(ax, p, ess, color=:black, markerstrokewidth=0 )
     
     
-    â,r,pv = getcorrelation(repeat(p,2), ess) # this does not work yet in MathUtils
+    â,r,pv,t = getcorrelation(repeat(p,2), ess) # this does not work yet in MathUtils
     plot!(ax, [0,1.], â[1].*[0,1.].+â[2], color=:red, lw=1.5, alpha=0.8)
     r = round(r,digits=2)
     # if round(pv,digits=8) == 0 pvs = "≤1${}$" else pvs = "=$(round(pv,digits=8))" end
@@ -1337,6 +1343,7 @@ function figure4()
     xlabel!(ax,"performance")
     ylabel!(ax,"activity difference\nrelevant - irrelevant")
     plot!(ax, right_margin=20*Plots.px)
+    @info "performance vs activity difference:" r pv t
 
     @panellabel ax "I" -0.1 1.1
 
@@ -1568,9 +1575,9 @@ function figure5()
             
 
             # correlation statistics
-            â,r,p = getcorrelation(neuronpositionsconcat, contextindicesconcat[:,4])
+            â,r,p,t = getcorrelation(neuronpositionsconcat, contextindicesconcat[:,4])
             plot!(ax, miceneuronpositions[[1,end]], â[1].*miceneuronpositions[[1,end]].+â[2], color=:red, ls=[:dash :solid][ag], lw=1.5, alpha=0.8)
-            @info "corr" brainarea=["V1","ACC"][ag] â[2] r p n=length(neuronpositionsconcat)
+            @info "corr" brainarea=["V1","ACC"][ag] â[2] r p t n=length(neuronpositionsconcat)
             r = round(r,digits=2)
             # p = round(p,digits=[2,4][ag])
             p = ["=0.41","<10⁻⁶"][ag]
@@ -1593,9 +1600,9 @@ function figure5()
                 plot!(ax, 1:nneurons, m, ribbon=e, lw=2, color=colorseries[px], facealpha=0.3)
 
                 # correlation statistics
-                â,r,p = getcorrelation(1:nneurons, m)
+                â,r,p,t = getcorrelation(1:nneurons, m)
                 plot!(ax, [1,nneurons], â[1].*[1,nneurons].+â[2], color=:red, lw=1.5, alpha=0.8)
-                @info "RNN models, corr context modality" sum(validmodels)  â[2] r p
+                @info "RNN models, corr context modality" sum(validmodels)  â[2] r p t
                 r = round(r,digits=2)
                 # p = round(p,digits=4)        # <10⁻³ <10⁻⁶
                 p = ["<10⁻³","<10⁻¹⁶","<10⁻¹⁶","<10⁻¹⁶"]
@@ -1628,16 +1635,19 @@ function figure5()
     colors = [:purple, :maroon, :orange]
     rs = []
     ps = []
+    ts = []
     for px in 1:3
-        â,r,p = getcorrelation(neuronpositionsconcat, contextindicesconcat[:,px])
+        â,r,p,t = getcorrelation(neuronpositionsconcat, contextindicesconcat[:,px])
         @info "$(labels[px])" r p
         push!(rs,r)
         push!(ps,p)
+        push!(ts,t)
         # pss = ["=2⋅10⁻³","=0.02","=2⋅10⁻⁴"]
         rd = round(r,digits=2)
         p = round(p,digits=3)
         annotate!(ax, px, 0.01, "r=$(rd)\np=$(p)", font(pointsize=8, color=:red, halign=:center, :bottom))
     end
+    @info "pre start dec stats" rs ps ts
     bar!(ax, [1, 2, 3], rs, widths=0.1, color=colors, linecolor=colors, label=nothing)
     ylims!(ax,-0.33,0.0)
     yticks!(ax, -0.3:0.1:0)
@@ -2093,6 +2103,8 @@ function supplementaryfigure2()
         savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure2-$(figurepostfix).pdf"))
     end
 
+
+
 end
 
 
@@ -2250,13 +2262,14 @@ function supplementaryfigure3()
             end
             c = @movingaverage(c,21)
             d = @movingaverage(d,21)
-            # p = pvalue(UnequalVarianceTTest(c,d)) / 2     # whether choice and choice+stimulus differ
-            p = pvalue(OneSampleTTest(c-d)) / 2      # mean - mean will be >, so we are checking only for >0,  one-tailed
-            @info "$mouseid R² -> differs -> $(labelsstimulus[sx]) no.t.=$(length(c))" p m=mean(c)-mean(d)
+            ttest = OneSampleTTest(c-d)
+            p = pvalue(ttest) / 2      # mean - mean will be >, so we are checking only for >0,  one-tailed
+            @info "$mouseid R² -> differs -> $(labelsstimulus[sx]) no.t.=$(length(c))" p ttest.t m=mean(c)-mean(d)
             # display(plot(ts,[c d]))
             p < 1e-12 ? ps = "p<10⁻¹²" : ps = "p=$(round(p,digits=3))"
             p < 1e-4 && p > 1e-12 ? ps = "p<10⁻⁴" : nothing
-            annotate!(axs[sx+4], -1.3, 0.04, text("$(ps)", :left, :bottom, 8))
+            t = round(ttest.t, digits=2)
+            annotate!(axs[sx+4], -1.3, 0.04, text("n=$(length(c))\nt=$t\n$(ps)", :left, :bottom, 8))
         end
         
 
