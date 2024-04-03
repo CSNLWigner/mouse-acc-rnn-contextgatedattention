@@ -335,8 +335,8 @@ function figure2()
 
     l = @layout(  [  [ x    y;
                       u  v  w  z];
-                     [[a b c d;
-                       e f g h]  i{0.2w}]]      )
+                     [a b c d e{0.25w};
+                      f g h i j]   ]      )
     
     axs = plot(layout=l, size=(5*350, 4*350), legend=false, dpi=dpi,
                left_margin=20*Plots.px, bottom_margin=15*Plots.px, top_margin=20*Plots.px, right_margin=20*Plots.px)
@@ -505,7 +505,7 @@ function figure2()
     sm = 31 # smoothing window
     for (bx,mouseind) in enumerate((mousev1ind,mouseaccind))
         for (stimulusindex,stimulus) in enumerate(labelsstimulus)
-            ax = axs[frblax+(stimulusindex-1)*4+bx] # axs[stimulusindex,bx]
+            ax = axs[frblax+(stimulusindex-1)*5+bx] # axs[stimulusindex,bx]
             @decoderbackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
             for contextindex in ([2,1],[1,2])[stimulusindex]
                 context = labelscontexts[contextindex]
@@ -568,7 +568,7 @@ function figure2()
         push!(accuraciesallareas, accuraciesall)
 
         for sx in 1:2        # stimulus modalities
-            ax = axs[frblax+(sx-1)*4+2+mx]
+            ax = axs[frblax+(sx-1)*5+2+mx]
             vspan!(ax,[config[:stimulusstart],config[:stimulusend]], color=:grey, alpha=0.3, label=nothing)
             vline!(ax,[config[:waterstart]],color=:white, alpha=0.5, lw=2, label=nothing)
             hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
@@ -599,14 +599,60 @@ function figure2()
 
 
 
+    # block averaging the accuracies timeseries to remove the autocorrelation
+    # display the s.t.d. of the accuracies with various time windows for ACC
+    blocklengths = 2:300
+    ss = [[],[],[],[]]
+    ac = zeros(4,300,8)
+    for bl in blocklengths
+        for mx in 1:4
+            # standard deviation
+            s = []
+            nblocks = 300 ÷ bl
+            for b in 1:nblocks
+                for bx in 1:2, sx in 1:2, rx in 1:2
+                    blockrange = 150 .+ ((b-1)*bl+1:b*bl)
+                    m = dropdims(mean(accuraciesallareas[2][mx:mx,bx,sx,rx,blockrange,1],dims=1),dims=1)
+                    # @info "block length $bl block number $b" blockrange size(m) size(se)
+                    push!(s, std(m))
+                end
+            end
+            push!(ss[mx], s)
+            
+            # autocorrelation:
+            for bx in 1:2, sx in 1:2, rx in 1:2
+                a = autocor(accuraciesallareas[2][mx,bx,sx,rx,151:450,1],0:299)
+                ac[mx,:,bx+(sx-1)*2+(rx-1)*4] = a
+            end
+        end
+    end
+    ax = axs[frblax+5]
+    hline!(ax, [0], color=:grey, ls=:dash, label=nothing)
+    for mx in 1:4
+        for (bx,bl) in enumerate(blocklengths)
+            # @info "" bx bl ss[bx]
+            # scatter!(ax, fill(bl,length(ss[mx][bx])), ss[mx][bx], color=:blue)
+            # scatter!(ax[1], [bl], [mean(ss[mx][bx])], yerror=std(ss[mx][bx])/sqrt(length(ss[mx][bx])))
+            # boxplot!(axautocorrelation, fill(bl,length(ss[bx])), ss[bx], color=:blue, alpha=0.5, outliers=false, whisker_range=1, notch=true)
+        end
+        plot!(ax, 0:299, mean(ac[mx,:,:],dims=2), ribbon=std(ac[mx,:,:],dims=2)/sqrt(8), color=:grey, alpha=0.5, label=nothing)
+    end
+    plot!(ax, 0:299, mean(ac[:,:,:],dims=(1,3))[1,:,1], ribbon=std(ac[:,:,:],dims=(1,3))[1,:,1]/sqrt(8*4), lw=3, color=:black, label=nothing)
+    xticks!(ax,0:50:300,string.(0:0.5:3))
+    xlabel!(ax, "lag [s]")
+    ylabel!(ax, "autocorrelation")
+    @panellabel ax "K" -0.30 1.20
+    
 
-    ax = axs[frblax+9]
+
+    ax = axs[frblax+10]
     colors = [ :purple :darkorange ]     # brainarea × consistency
     # create the difference between relevant and irrelevant projections
     # accuraciesallareas is a (narea)(nmice,nstates,nmodalities,nrelevancies,ntimestamps,3)
-    timerange = (timestamps .>= config[:stimulusstart]+0.5) .& (timestamps .< config[:waterstart])
-    # timerange = (timestamps .>= config[:stimulusstart]+0.5) .& (timestamps .< config[:stimulusend] + config[:posteventpadding])
+    timerange = (timestamps .>= config[:stimulusstart]+0.60) .& (timestamps .< config[:stimulusend])
     @info "" sum(timerange)
+    blocksize = 60
+    nblocks = sum(timerange) ÷ blocksize        # number of blocks within the valid time range for suppression
     tickpoints = Float64[]
     ps = Float64[]
     ts = Float64[]
@@ -617,19 +663,22 @@ function figure2()
         mouseind = (mousev1ind,mouseaccind .- mouseaccind[begin] .+ mousev1ind[end]*2 .+ 3)[mx]
         barind = [mouseind; mouseind.-mouseind[begin].+mouseind[end].+1] + repeat([0.05,-0.05],length(mouseind))
         # all mice
-        ma = similar(accuraciesallareas[mx][1,:,:,:,:,1])
+        ma = similar(accuraciesallareas[mx][1,:,:,:,1:nblocks,1]) # create mean over autocorrelating blocks
         for bx in 1:2, sx in 1:2, rx in 1:2
-                ma[bx,sx,rx,:] = @movingaverage(dropdims(mean(accuraciesallareas[mx][:,bx,sx,rx,:,1],dims=1),dims=1),5)
+            a = reshape(accuraciesallareas[mx][:,bx,sx,rx,timerange,1],size(accuraciesallareas[mx],1),blocksize,nblocks)
+            a = mean(a, dims=2)[:,1,:]
+            # ma[bx,sx,rx,:] = @movingaverage(dropdims(mean(a,dims=1),dims=1),5)
+            ma[bx,sx,rx,:] = dropdims(mean(a,dims=1),dims=1)
         end
         
         for sx in 1:2
-            d = ma[:,sx,1,timerange] .- ma[:,sx,2,timerange]
+            d = ma[:,sx,1,:] .- ma[:,sx,2,:]
             # d = reshape(d,size(d,1),:)            # reshape to (variables, timestamps)
             mouseind = [[1],[4]][sx]
             barind = [mouseind; mouseind.-mouseind[begin].+mouseind[end].+1] + repeat([0.05,-0.05],length(mouseind))   .+ (mx-1)*8
             push!(tickpoints, mean(barind))
             boxplot!(   ax, barind', d', color=colors, alpha=mean(alphas),
-                        outliers=false, whisker_range=1, notch=true,
+                        outliers=false, whisker_range=5, notch=false,
                         label=[  nothing, [["consistent" "exploratory"] repeat([nothing nothing],1,length(mouseind)-1)]  ][Int(sx+mx==4)+1]   )
             ttest = OneSampleTTest(d[1,:],d[2,:])
             push!(ps, pvalue(ttest))
@@ -639,12 +688,11 @@ function figure2()
     @info "p" ps
     @info "t" ts
 
-    pss = ifelse.(ps .< 0.0001, "***", "ns")
-    psr = pss .*" \n" .* ["p=0.09", "p=0.81", "p<10⁻²⁰", "p<10⁻²⁰"]
+    pss = ifelse.(ps .< 0.05, "*", "ns")
+    psr = pss .*" \np=" .* string.(round.(ps,digits=3))
     hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
     plot!(ax, legends=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
     plot!(ax, left_margin=50*Plots.px)
-    # annotate!(ax, tickpoints, -0.08, text.(ps .< 0.05, ["*" "ns"]), fontsize=12, halign=:center, valign=:bittin, color=:black)
     annotate!(ax, tickpoints, [0.3,0.3,0.6,0.6], text.( psr, 8, :black, :top, :center))#, fontsize=6, halign=:center, valign=:bittin, color=:black)
     # do the above annotate with just 2 digits and scientific notation of the p-values
     
@@ -657,7 +705,7 @@ function figure2()
     # title!(ax,"mouse")
     ylabel!(ax, "accuracy difference\nrelevant - irrelevant")
 
-    @panellabel ax "K" -0.30 1.08
+    @panellabel ax "L" -0.30 1.20
 
 
 
@@ -2090,8 +2138,7 @@ function supplementaryfigure2()
 
 
 
-    
-    
+
     
     
     
@@ -2110,15 +2157,123 @@ end
 
 
 
-
-
-
-
 function supplementaryfigure3()
+    
+    figurepostfix = "context,driftcontrol"
+    @info "making supplementary figure 3" figurepostfix
+
+    blockwidth = 60
+    nblocks = 600 ÷ blockwidth
+    sm = 51 # smoothing window
+    colors = [:deeppink,:rebeccapurple,:black]
+
+    axs = plot(layout=(1,4),size=(1.2* 4*300, 1*300), legend=false, left_margin=30*Plots.px, top_margin=15*Plots.px, bottom_margin=30*Plots.px, dpi=dpi)
+
+    mouseids = collectsubjectids("ACC")
+    for (mx,mouseid) in enumerate(mouseids)
+    
+        @load(config[:cachepath]*"subspace/decode,context,trialcourse-$(string(mouseid)).bson", @__MODULE__, timestamps, accuracies, coefficients)
+        accuraciesholdmidedgeout = copy(accuracies)
+        # load uncontrolled context
+        @load(config[:cachepath]*"subspace/decode,variables-$(string(mouseid)).bson", @__MODULE__, accuracies, coefficients)
+
+        
+        ax = axs[mx]
+        @decoderbackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], :white)
+        
+        accuraciesblockaveraged = zeros(2,nblocks)
+        for (i,accur) in enumerate((accuraciesholdmidedgeout[1,:,:],accuraciesholdmidedgeout[2,:,:],accuracies[3,:,:]))
+            m = MathUtils.convolve(accur[:,1],ones(sm)./sm)
+            e = MathUtils.convolve(accur[:,3],ones(sm)./sm)
+            plot!(ax, timestamps, m, ribbon=e, lw=2, color=colors[i], alpha=0.7, fillalpha=0.15, label=["test edge", "test middle","all"][i])
+            xlims!(ax,-1.5,4.5)
+            yticks!(ax,0.5:0.1:1.0)
+            ylims!(ax,0.45,1.25)
+            title!(ax, "mouse $mx")
+            if mx==1 ylabel!(ax, "context accuracy") end
+            xlabel!(ax, "time [s]")
+
+            if i<3 accuraciesblockaveraged[i,:] = mean(reshape(accur[:,1],blockwidth,nblocks), dims=1)[1,:] end
+
+        end
+        plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
+
+
+        ttest = OneSampleTTest(accuraciesblockaveraged[1,:], accuraciesblockaveraged[2,:])
+        p = pvalue(ttest)
+        t = ttest.t
+
+        annotate!(ax, 3.5, 1.124, text("n=$nblocks\np=$(round(p,digits=2))\nt=$(round(t,digits=2))", :left, 8))
+
+        @panellabel ax ["A","B","C","D"][mx] -0.25 1.1
+    end
+
+
+    plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)
+
+
+
+
+    display(axs)
+
+
+    if config[:publishfigures]
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure3-$(figurepostfix).png"))
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure3-$(figurepostfix).pdf"))
+    end
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function reliableneurons(R2,aggr=mean,th=0.05)
+    m = Float64[]
+    conds = zeros(Int,size(R2,1))
+    for t in axes(R2,1)
+        cond = R2[t,:].>th
+        push!(m,aggr(R2[t,cond]))
+        conds[t] = findmax(R2[t,:])[2]
+    end
+    return m,conds
+end
+
+
+function interp(m,timestamps)
+    masknotnan = .! isnan.(m)
+    f = findfirst(masknotnan)
+    l = findlast(masknotnan)
+    if f===nothing || l===nothing
+        return m, timestamps
+    end
+    masknotnanfullrange = f:l
+    timestampsnotnan = timestamps[masknotnanfullrange]
+    timeindex = collect(1:length(timestamps))
+    timeindexnotnan = timeindex[masknotnan]
+    mnotnan = m[masknotnan]
+    itp = interpolate((timeindexnotnan,), mnotnan, Gridded(Linear()))
+    # mi = itp.(timeindexnotnan)
+    # return mi, timestampsnotnan
+    mi = itp.(timeindex[masknotnanfullrange])
+    return mi, timestampsnotnan
+end
+
+
+function supplementaryfigure4()
 
     
     figurepostfix = "choice,lickcontrol"
-    @info "making supplementary figure 3" figurepostfix
+    @info "making supplementary figure 4" figurepostfix
 
 
     # right 2×2 block: mouse performance and suppression
@@ -2204,29 +2359,71 @@ function supplementaryfigure3()
 
 
         # partial neural activity prediction
-
-        @load(config[:cachepath]*"subspace/predict,neurons-$(string(mouseid)).bson", @__MODULE__, timestamps, R2s)
-
+        consistentlabel = ["",",consistent"][2]
+        @load(config[:cachepath]*"subspace/predict,neurons$(consistentlabel)-$(string(mouseid)).bson", @__MODULE__, timestamps, R2s)
+        nneurons = size(R2s,4)
         R2s[R2s.<0] .= NaN
         predictorcombinations = [ [1], [2], [4], [1,4], [2,4], [3], [1,2,3], [1,2,3,4]  ]
         labelscombinations = ["visual","audio","decision","visual+decision","audio+decision","context","visual-audio-context","visual-audio-context+reward"]
-            includeincompare = [1,2,3,4,5]
+        labelscombinationsirrelevant = ["visual irrelevant","audio irrelevant","decision","visual irrelevant+decision","audio irrelevant+decision","context irrelevant","visual-audio-context irrelevant","visual-audio-context+reward irrelevant"]
+        includeincompare = [1,2,3,4,5]
         nincludeincompare = length(includeincompare)
         colorscombinations = [:dodgerblue :lime :darkorange :purple :olive :mediumvioletred :grey :gold]
-    
+        colorscombinationsirrelevant = [:darkblue :darkgreen]
+        ma = 21
+        # aggr = x->reduce(+,x,init=0)/length(x)            # mean
+        aggr = x->reduce(max, x, init=0)                   # maximum
         labelscontexts = ["all", "visual", "auditory"]
         # trialscontexts = [trues(ntrials), triallist[!,:context] .== "visual", triallist[!,:context] .== "audio" ]
+        # R2sism = zeros(nincludeincompare,3,ntimestamps)
+        conds = zeros(Int,nincludeincompare,3,ntimestamps)
         for (ix,i) in enumerate(includeincompare)                   # 1:ncombinations
-            if i in [1,3,4]
-                cx = 2
-                m = [ mean(R2s[i,cx,t,R2s[i,cx,t,:,1].>0,1]) for t in axes(R2s,3)]
-                plot!(axs[1+4], timestamps, @movingaverage(m,11), lw=2, color=colorscombinations[i], label=labelscombinations[i])
+            if i in [1,3,4]  # visual stimulus
+                cx = 2     # visual context (relevant)
+                m,conds[i,cx,:] = reliableneurons(R2s[i,cx,:,:,1],aggr)
+                mi,timestampsnotnan = interp(m, timestamps)
+                plot!(axs[1+4], timestamps, @movingaverage(m,3), lw=2, color=colorscombinations[i], alpha=0.05, label=nothing)
+                plot!(axs[1+4], timestampsnotnan, @movingaverage(mi,ma), lw=2, color=colorscombinations[i], label=labelscombinations[i])
+                # same stimulus in the irrelevant (opposite) context
+                if i==1
+                    cx = 3     # audio context (irrelevant)
+                    m,conds[i,cx,:] = reliableneurons(R2s[i,cx,:,:,1],aggr)
+                    mi,timestampsnotnan = interp(m, timestamps)
+                    plot!(axs[2+4], timestamps, @movingaverage(m,3), lw=2, color=colorscombinationsirrelevant[i], alpha=0.05, label=nothing)
+                    plot!(axs[2+4], timestampsnotnan, @movingaverage(mi,ma), lw=2, color=colorscombinationsirrelevant[i], alpha=0.5, label=labelscombinations[i]*" irrelevant")
+                end
             end
-            if i in [2,3,5]
+            if i in [2,3,5]  # auditory stimulus
+                cx = 3     # audio context (relevant)
+                m,conds[i,cx,:] = reliableneurons(R2s[i,cx,:,:,1],aggr)
+                plot!(axs[2+4], timestamps, @movingaverage(m,ma), lw=2, color=colorscombinations[i], label=labelscombinations[i])
+                if i==2
+                    cx = 2     # visual context (irrelevant)
+                    m,conds[i,cx,:] = reliableneurons(R2s[i,cx,:,:,1],aggr)
+                    mi,timestampsnotnan = interp(m, timestamps)
+                    plot!(axs[1+4], timestamps, @movingaverage(m,3), lw=2, color=colorscombinationsirrelevant[i], alpha=0.05, label=nothing)
+                    plot!(axs[1+4], timestampsnotnan, @movingaverage(mi,ma), lw=2, color=colorscombinationsirrelevant[i], alpha=0.5, label=labelscombinations[i]*" irrelevant")
+                end
+            end
+            if i in [4]
+                # irrelevant other stimulus + choice in this context:
                 cx = 3
-                m = [ mean(R2s[i,cx,t,R2s[i,cx,t,:,1].>0,1]) for t in axes(R2s,3)]
-                plot!(axs[2+4], timestamps, @movingaverage(m,11), lw=2, color=colorscombinations[i], label=labelscombinations[i])
+                m,conds[i,cx,:] = reliableneurons(R2s[i,cx,:,:,1],aggr)
+                mi,timestampsnotnan = interp(m, timestamps)
+                # R2sism[i,cx,:] = mi
+                plot!(axs[2+4], timestamps, @movingaverage(m,3), lw=2, color=colorscombinations[i], alpha=0.05, label=nothing)
+                plot!(axs[2+4], timestampsnotnan, @movingaverage(mi,ma), lw=2, color=colorscombinations[i], alpha=0.7, label=labelscombinationsirrelevant[i])
             end
+            if i in [5]
+                # irrelevant other stimulus + choice in this context:
+                cx = 2
+                m,conds[i,cx,:] = reliableneurons(R2s[i,cx,:,:,1],aggr)
+                mi,timestampsnotnan = interp(m, timestamps)
+                # R2sism[i,cx,:] = mi
+                plot!(axs[1+4], timestamps, @movingaverage(m,3), lw=2, color=colorscombinations[i], alpha=0.05, label=nothing)
+                plot!(axs[1+4], timestampsnotnan, @movingaverage(mi,ma), lw=2, color=colorscombinations[i], alpha=0.7, label=labelscombinationsirrelevant[i])
+            end
+            
         end
 
         for sx in 1:2
@@ -2234,10 +2431,10 @@ function supplementaryfigure3()
             ax = axs[sx+4]
             @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
             plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
-            ylims!(ax, 0, 0.5)
+            ylims!(ax, 0, 1.19)
             # title!(ax,["visual partial","auditory partial"][sx]*"\n$(labelscontexts[cx]) context")
-            if mx==1 ylabel!(ax,["visual","auditory"][sx]*" R²") end
-            xlabel!(ax,"time (s)")
+            if mx==1 ylabel!(ax,["visual context","auditory context"][sx]*" R²") end
+            if sx==2 xlabel!(ax,"time [s]") end
             if sx==1
                 plot!(ax, top_margin=40*Plots.px)
                 @panellabel ax ["I","J","K","L"][mx] -0.25 1.2
@@ -2245,70 +2442,59 @@ function supplementaryfigure3()
         end
 
 
+
         # stats
         for sx in 1:2
-            cx = sx            # each stimulus in its relevant context
-            c = Float64[]
-            d = Float64[]
+            cx = sx+1            # each stimulus in its relevant context
+            irsx = 3-sx         # other stimulus in the irrelevant context
+            rel = []
+            irrel = []
             ts = Int[]
-            for t in axes(R2s,3)
-                cc = R2s[sx+3,cx,t,:,1].>0    # conditions for valid predictable neurons
-                cd = R2s[3,cx,t,:,1].>0
-                if sum(cd)>0 && sum(cc)>0       # if both lines are valid, fill in
-                    push!(c, mean(R2s[sx+3,cx,t,cc,1]) )
-                    push!(d, mean(R2s[3,cx,t,cd,1]) )
+            blockwidth = 60
+            n = 3
+            for t in 150-30+60+1:150+300   #axes(R2s,3)
+            # if [cx,mx] in [[3,2]] tbl = 150+210+1:150+240; n = 6; else tbl = 150-30+60+1:150+300; n = 3 end
+            # for t in tbl
+                if n*blockwidth < t < (n+1)*blockwidth
+                    n += 1
+                    push!(rel, Float64[])
+                    push!(irrel, Float64[])
+                end
+                # condc = R2s[sx+3,cx,t,:,1].>0    # conditions for valid predictable neurons
+                # condd = R2s[3,cx,t,:,1].>0
+                condr = R2s[sx+3,cx,t,:,1].>0    # conditions for valid predictable neurons
+                condi = R2s[irsx+3,cx,t,:,1].>0
+                # condr = R2sism[sx+3,cx,t].>0    # conditions for valid predictable neurons
+                # condi = R2sism[irsx+3,cx,t].>0
+                if sum(condr)>0 && sum(condi)>0       # if both lines are valid, fill in
+                    push!(rel[end], aggr(R2s[sx+3,cx,t,condr,1]) )
+                    push!(irrel[end], aggr(R2s[irsx+3,cx,t,condi,1]) )
+                    # push!(rel[end], aggr(R2sism[sx+3,cx,t]) )
+                    # push!(irrel[end], aggr(R2sism[irsx+3,cx,t]) )
                     # push!(ts, timestamps[t])   # save timepoints for diagnostics
+                    # @info "$mouseid cx$sx block $n time $t" mean(rel[end]-irrel[end]) std(rel[end]-irrel[end])/sqrt(length(rel[end]))
                 end
             end
-            c = @movingaverage(c,21)
-            d = @movingaverage(d,21)
-            ttest = OneSampleTTest(c-d)
+            @info "$mouseid cx $sx choice control statistics" mean(mean.(rel .- irrel)) std(mean.(rel .- irrel))/sqrt(length(rel))
+            # c = @movingaverage(vcat(c...),21)
+            # d = @movingaverage(vcat(d...),21)
+
+            ttest = OneSampleTTest(mean.(rel .- irrel))        # within block averaging to avoid autocorrelation
             p = pvalue(ttest) / 2      # mean - mean will be >, so we are checking only for >0,  one-tailed
-            @info "$mouseid R² -> differs -> $(labelsstimulus[sx]) no.t.=$(length(c))" p ttest.t m=mean(c)-mean(d)
+            @info "$mouseid R² -> differs -> $(labelsstimulus[sx]) no.t.=$(length(rel))" p ttest.t m=mean.(rel .- irrel)
             # display(plot(ts,[c d]))
             p < 1e-12 ? ps = "p<10⁻¹²" : ps = "p=$(round(p,digits=3))"
             p < 1e-4 && p > 1e-12 ? ps = "p<10⁻⁴" : nothing
             t = round(ttest.t, digits=2)
-            annotate!(axs[sx+4], -1.3, 0.04, text("n=$(length(c))\nt=$t\n$(ps)", :left, :bottom, 8))
+
+            if ([cx,mx] in [[2,2],[2,3],[3,1],[3,2],[3,3]])
+                # aesthetically remove panels without data
+                plot!(axs[sx+4],legend=false)
+            else # provide stats on panels with data
+                annotate!(axs[sx+4], -1.3, 0.04, text("n=$(length(rel))\nt=$t\n$(ps)", :left, :bottom, 8))
+            end
         end
         
-
-
-
-        # choice geometry
-
-        # for sx in 1:2         # stimulus modalities
-        #     ax = axs[2+sx]
-        #     @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
-        #     angleslist = []
-        #     for rx in 2:-1:1           #relevant rx=1, irrelevant rx=2
-        #         # rx = 2 - (sx==cx)  # 
-        #         cx = 2 - (sx==rx) #  contexts
-        #         angles = angleofvectors(coefficientsall[mx][sx,cx,:,1:end-1,1], coefficientsall[mx][3,cx,:,1:end-1,1])            # end-1 -> we don't needt the bias coefficient for angle
-        #         anglese = dropdims(sqrt.( sum(  coefficientsall[mx][sx,cx,:,1:end-1,1] .* coefficientsall[mx][3,cx,:,1:end-1,3], dims=2).^2 +
-        #                            sum(  coefficientsall[mx][3,cx,:,1:end-1,1] .* coefficientsall[mx][sx,cx,:,1:end-1,3], dims=2).^2 ),dims=2)
-                                               
-        #         anglesm = @movingaverage(angles,sm)
-        #         # anglesem = @movingaverage(anglese,sm)
-        #         plot!(ax, timestamps, anglesm, lw=3, color=colorsangles[sx,rx], label=labelsstimulus[sx]*" "*labelsrelevancy[rx])
-        #         hline!(ax,[90], ls=:dash, color=:darkgray, label=nothing)
-        #         ylims!(ax, 0, 150)
-        #         yticks!(ax, 0:30:150)
-        #         push!(angleslist, angles[151:450]) # select stimulus presentation only for stats
-        #     end
-        #     pd = pvalue(OneSampleTTest(angleslist...)) / 2     # whether rel and irrelev differ
-        #     p90 = pvalue(OneSampleTTest(angleslist[2] .- 90))  # whether in irrelevant, is close to 90 degrees
-        #     @info "$mouseid $(labelsstimulus[sx])" pd p90
-
-        #     plot!(ax, legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8)
-        #     if sx==2 xlabel!(ax,"time from stimulus onset [s]") end
-        #     if mx==1 ylabel!(ax,"angle between\n stim. & choice [°]") end
-        #     if sx==1
-        #         # title!(ax, "$(string(mouseid))")
-        #         @panellabel ax ["E","F","G","H"][mx] -0.25 1.4
-        #     end
-        #     if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
-        # end
 
 
 
@@ -2352,43 +2538,53 @@ function supplementaryfigure3()
                 hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
                 for bx in 2:2 # 1:2        # consistency
                     for rx in 2:2 # 1:2    # relevancies
-                        @info "$mouseid" sx e="exploratory lick only tr=$(ntrialslickall[mx,bx,sx,rx,1]+ntrialsnolickall[mx,bx,sx,rx,1]) (go:nogo=$(ntrialsall[mx,bx,sx,rx,3]):$(ntrialsall[mx,bx,sx,rx,4]))" c="consistent lick only tr=$(ntrialslickall[mx,1,sx,rx,1]+ntrialsnolickall[mx,1,sx,rx,1]) (go:nogo=$(ntrialsall[mx,1,sx,rx,3]):$(ntrialsall[mx,1,sx,rx,4]))"
+                        @info "$mouseid" sx e="exploratory lick only tr=$(ntrialslickall[mx,bx,sx,rx,1]+ntrialsnolickall[mx,bx,sx,rx,1]) (go:nogo=$(ntrialsall[mx,bx,sx,rx,3]):$(ntrialsall[mx,bx,sx,rx,4]))" c="consistent lick only tr=$(ntrialslickall[mx,1,sx,rx,1]+ntrialsnolickall[mx,1,sx,rx,1]) (go:nogo=$(ntrialsall[mx,1,sx,rx,3]):$(ntrialsall[mx,1,sx,rx,4]))" crel="consistent lick only relevant tr=$(ntrialslickall[mx,1,sx,1,1]+ntrialsnolickall[mx,1,sx,1,1]) (go:nogo=$(ntrialsall[mx,1,sx,1,3]):$(ntrialsall[mx,1,sx,1,4]))"
 
-                        if ntrialsall[mx,bx,sx,rx,1]<10 continue end
-                        m = @movingaverage(accuraciesall[mx,bx,sx,rx,:,1],sm)
-                        e = @movingaverage(accuraciesall[mx,bx,sx,rx,:,3],sm)
-                        mfa = @movingaverage(accuraciesfullall[mx,bx,sx,rx,:,1],sm)
-                        efa = @movingaverage(accuraciesfullall[mx,bx,sx,rx,:,3],sm)
-                        mfacons = @movingaverage(accuraciesall[mx,1,sx,rx,:,1],sm) # consistent control
-                        efacons = @movingaverage(accuraciesall[mx,1,sx,rx,:,3],sm)
-                        # normal error bars have no meaning here, beacuse we want to compare within individual mice
-                        # so we show here the CV errors improved by the mouse-average
-                        # e = @movingaverage(dropdims(mean(accuraciesall[mx:mx,bx,sx,rx,:,3],dims=1)/sqrt(nmice),dims=1), sm)
-                        plot!(ax,timestamps,m,ribbon=e,lw=1,color=colorslick[lx], alpha=0.8, fillalpha=0.1,
-                            label="exploratory, $(lickcontrollabel) only trials")
-                        
-                        # if lx==2
-                        plot!(ax,timestamps,mfa,ribbon=efa,lw=3, color=colors[bx], alpha=alphas[rx], fillalpha=0.1,
-                            label="exploratory, all trials")
-                        
-                        if ntrialsall[mx,1,sx,rx,1]<10 continue end
-                        plot!(ax,timestamps,mfacons,ribbon=efacons,lw=3, color=:fuchsia, alpha=alphas[rx], fillalpha=0.1,
-                            label="consistent, $(lickcontrollabel) only trials")
+                        # irrelevant, exploratory
+                        if ntrialsall[mx,bx,sx,rx,1]>=10
+                            m = @movingaverage(accuraciesall[mx,bx,sx,rx,:,1],sm)
+                            e = @movingaverage(accuraciesall[mx,bx,sx,rx,:,3],sm)
+                            mfa = @movingaverage(accuraciesfullall[mx,bx,sx,rx,:,1],sm)
+                            efa = @movingaverage(accuraciesfullall[mx,bx,sx,rx,:,3],sm)
+                            # normal error bars have no meaning here, beacuse we want to compare within individual mice
+                            # so we show here the CV errors improved by the mouse-average
+                            # e = @movingaverage(dropdims(mean(accuraciesall[mx:mx,bx,sx,rx,:,3],dims=1)/sqrt(nmice),dims=1), sm)
+                            plot!(ax,timestamps,m,ribbon=e,lw=1,color=colorslick[lx], alpha=0.8, fillalpha=0.1,
+                                label="exploratory, $(labelsrelevancy[2]), $(lickcontrollabel) only trials")
+                            
+                            # if lx==2
+                            plot!(ax,timestamps,mfa,ribbon=efa,lw=3, color=colors[bx], alpha=alphas[rx], fillalpha=0.1,
+                                label="exploratory, all trials")
+
+                        end
+                        # consistent control                            
+                        # mfaconsr = @movingaverage(accuraciesall[mx,1,sx,1,:,1],sm) # consistent control relevant
+                        # efaconsr = @movingaverage(accuraciesall[mx,1,sx,1,:,3],sm)
+                        mfacons = @movingaverage(accuraciesall[mx,1,sx,2,:,1],sm) # consistent control irrelevant
+                        efacons = @movingaverage(accuraciesall[mx,1,sx,2,:,3],sm)
+    
+                        # if ntrialsall[mx,1,sx,1,1]>=10 
+                        #     plot!(ax,timestamps,mfaconsr,ribbon=efaconsr,lw=3, color=colors[1], alpha=alphas[1], fillalpha=0.1,
+                        #         label="consistent, $(labelsrelevancy[1]), $(lickcontrollabel) only trials")
                         # end
+                        if ntrialsall[mx,1,sx,2,1]>=10 
+                            plot!(ax,timestamps,mfacons,ribbon=efacons,lw=3, color=:fuchsia, alpha=0.3, fillalpha=0.1,
+                                label="consistent, $(labelsrelevancy[2]) $(lickcontrollabel) only trials")
+                        end
                     end
                 end
                 plot!(ax,legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8)
                 xlims!(ax,-1.5,4.5)
-                ylims!(ax,0.3,1.25)
+                ylims!(ax,0.3,1.35)
                 yticks!(ax,0.5:0.25:1)
                 plot!(ax, left_margin=30*Plots.px)
                 if mx==1 ylabel!(ax, "stimulus accuracy"); plot!(ax,left_margin=50*Plots.px) end
-                if sx==1 plot!(ax, top_margin=60*Plots.px) end
+                # if sx==1 plot!(ax, top_margin=30*Plots.px) end
                 if sx==2 xlabel!(ax, "time from stimulus onset [s]"); plot!(ax, bottom_margin=40*Plots.px) end
                 # title!(ax, ["$(string(mouseid))\n$(labelsrelevancy[2]) $(labelsconsistency[2])\n",""][sx]*labelsstimulus[sx]*" stimulus")
-                title!(ax, ["$(labelsrelevancy[2]) $(labelsconsistency[2])\n",""][sx]*labelsstimulus[sx]*" stimulus")
+                title!(ax, labelsstimulus[sx]*" stimulus")
                 
-                if sx==1 @panellabel ax ["A","B","C","D"][mx] -0.25 1.6 end
+                if sx==1 @panellabel ax ["A","B","C","D"][mx] -0.25 1.15 end
                 if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
             end
         end
@@ -2403,8 +2599,8 @@ function supplementaryfigure3()
 
 
     if config[:publishfigures]
-        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure3-$(figurepostfix).png"))
-        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure3-$(figurepostfix).pdf"))
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure4-$(figurepostfix).png"))
+        savefig(joinpath(config[:publicationfigurespath],"SupplementaryFigure4-$(figurepostfix).pdf"))
     end
 
 end

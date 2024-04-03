@@ -14,6 +14,7 @@ using Distributions
 using StatsBase
 using MultivariateStats
 using HypothesisTests: OneSampleTTest, UnequalVarianceTTest, pvalue
+using Interpolations
 using Flux: onehot, onehotbatch, onecold
 
 
@@ -98,6 +99,13 @@ function main()
         for mouseid in mouseids
             nwbfile,_ = loadnwbdata(mouseid)
             decodevariables(mouseid,nwbfile)
+        end
+        
+    elseif commandlineoptions[:_COMMAND_]==:decodecontexttimecourse
+        mouseids = parsesubjectids()
+        for mouseid in mouseids
+            nwbfile,_ = loadnwbdata(mouseid)
+            decodecontexttimecourse(mouseid,nwbfile)
         end
 
     elseif commandlineoptions[:_COMMAND_]==:choicegeometry
@@ -258,6 +266,8 @@ function main()
             supplementaryfigure2()
         elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("S3")
             supplementaryfigure3()
+        elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("S4")
+            supplementaryfigure4()
         elseif commandlineoptions[:figure][:_COMMAND_]==Symbol("stats")
             statshelper()
         end

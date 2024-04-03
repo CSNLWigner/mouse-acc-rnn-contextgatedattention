@@ -101,11 +101,11 @@ function optimizesignalreversefit(p::AbstractVector, ic)
 end
 
 
-function kde(x; n=100, σ=2.25)
+function kde(x::AbstractVector; n=100, σ=2.25)
     dists = Normal.(x, sqrt(σ))
-    x_range = range(minimum(x), maximum(x), length = n)
-    densities = sum(pdf.(dist, x_range) for dist in dists)
-    return x_range, densities
+    xrange = range(minimum(x), maximum(x), length = n)
+    densities = sum(pdf.(dist, xrange) for dist in dists)
+    return xrange, densities
 end
 
 macro movingaverage(x, sm)
@@ -113,7 +113,7 @@ macro movingaverage(x, sm)
 end
 
 
-function convolve(x::Vector{Float64},v::Vector{Float64}; mode=:same)
+function convolve(x::AbstractVector{T1},v::AbstractVector{T2}; mode=:same) where {T1<:Number, T2<:Number}
     nx = length(x)
     nvh = length(v)÷2
     xp = zeros(nx+2*nvh) #  initializing proper size

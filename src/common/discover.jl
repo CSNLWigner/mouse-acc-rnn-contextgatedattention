@@ -7,10 +7,10 @@ export accuracy
 export mld, multiplylastdimensions
 export decodevariablefromactivity, predictvariablefromactivity
 export projectontoaxis #,ica
+export train_test_pairs_holdmidedge
 
 
-
-
+using Base.Iterators: partition
 using DataFrames
 
 using LinearAlgebra
@@ -28,7 +28,11 @@ using ..MathUtils
 
 
 
-function decodevariablefromactivity(activities::Array{Float64,3},variable::Union{Vector{String},Vector{Integer},Vector{Float64},Vector{Bool}}; halfwidth=0, nfolds=5)
+"""
+A binary variable is predicted from a vector of neural activities at each timepoint
+"""
+function decodevariablefromactivity(activities::Array{Float64,3},variable::Union{Vector{String},Vector{Integer},Vector{Float64},Vector{Bool}};
+                                    halfwidth=0, nfolds=5, resampling=StratifiedCV(nfolds=nfolds))
     # needs input in a multi-trial activity array:   [trials,timestamps,neurons]
     # variable with categorical values same number of elements as trials
     # half width is the number of timestamps to use on either side of the current timestamp: number of feature = (2*halfwidth+1) * nneurons
@@ -46,7 +50,7 @@ function decodevariablefromactivity(activities::Array{Float64,3},variable::Union
         # @info "levels" levels(y)
         decoder = machine(LogisticClassifier(penalty=:l2), X, y)
         # @info "machine" decoder
-        e = evaluate!(decoder, resampling=StratifiedCV(nfolds=nfolds), verbosity=0, operation=predict_mode,
+        e = evaluate!(decoder, resampling=resampling, verbosity=0, operation=predict_mode,
                       measure=[Accuracy()])
         # @info "params" e.fitted_params_per_fold
         # @info "evaluation" e.measure e.measurement
@@ -63,6 +67,13 @@ function decodevariablefromactivity(activities::Array{Float64,3},variable::Union
     end
     return decoders, accuracies, coefficients
 end
+
+
+
+
+
+
+
 
 
 
@@ -184,6 +195,47 @@ end
 
 
 
+
+
+
+
+
+
+
+
+function train_test_pairs_holdmidedge(rows, y; nhold=5, cv=10, reverse=false)
+    # Returns the pair `[(train, test)]`, where `train` and `test` are
+    # vectors such that `rows=vcat(train, test)` and
+    # `length(test)/length(rows)` is approximatey equal to fraction_hold`.
+    # this works for the two classes, and tests the middle fraction_hold-s
+
+    levels = unique(y)
+
+    splitpoint = findlast(y[rows] .== levels[1])
+    if ! reverse
+        # trainsplit1 = Int(round(splitpoint*(1-fractionhold)))
+        # trainsplit2 = Int(round(length(rows)*(1-fractionhold)))+1
+        trainsplit1 = splitpoint-nhold
+        trainsplit2 = splitpoint+nhold
+        # @info "" trainsplit1 trainsplit2
+        train = [ 1:trainsplit1..., trainsplit2+1:length(rows)... ]
+        testlist = ( trainsplit1+1:splitpoint, splitpoint+1:trainsplit2 )
+    else
+        # testsplit1 = Int(round(splitpoint*fractionhold))
+        # testsplit2 = Int(round(length(rows)*fractionhold))+1
+        testsplit1 = nhold
+        testsplit2 = length(rows)-nhold
+        # @info ""  testsplit1 testsplit2
+        train = [ testsplit1+1:splitpoint..., splitpoint+1:testsplit2... ]
+        testlist = ( 1:testsplit1, testsplit2+1:length(rows) )
+    end
+    tests1 = collect(Base.Iterators.partition(testlist[1], cv))
+    tests2 = collect(Base.Iterators.partition(testlist[2], cv))
+    tests = [ vcat(tests1[i], tests2[i]) for i in 1:cv ]
+    # @info "" splitpoint tests1 tests2
+
+    return [  (train, test) for test in tests ]
+end
 
 
 
