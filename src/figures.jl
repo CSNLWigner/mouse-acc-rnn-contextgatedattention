@@ -2528,6 +2528,11 @@ function supplementaryfigure4()
 
         # lick controlled decoding
         colors = [:purple :darkorange]                         # consistency
+        blockwidth = 60
+        suppresstimes = 150+60+1:150+300
+        nblocks = length(suppresstimes) ÷ blockwidth
+        explickstats = zeros(nmice,2,2,nblocks)                    # (mice,stimulus,relevance,block-averaged time)
+        lickandallstats = zeros(nmice,2,2,2,nblocks)                     # (mice,stimulus,relevance,licking,block-averaged time)
         for (lx, (accuraciesall,ntrialsall)) in enumerate(zip((accuracieslickall,accuraciesnolickall),(ntrialslickall,ntrialsnolickall)))
             if lx==2 continue end     # no concern with no lick
             lickcontrollabel = ["lick","no lick"][lx]
@@ -2537,7 +2542,7 @@ function supplementaryfigure4()
                 vline!(ax,[config[:waterstart]],color=:white, alpha=0.5, lw=2, label=nothing)
                 hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
                 for bx in 2:2 # 1:2        # consistency
-                    for rx in 2:2 # 1:2    # relevancies
+                    for rx in 1:2 # 1:2    # relevancies
                         @info "$mouseid" sx e="exploratory lick only tr=$(ntrialslickall[mx,bx,sx,rx,1]+ntrialsnolickall[mx,bx,sx,rx,1]) (go:nogo=$(ntrialsall[mx,bx,sx,rx,3]):$(ntrialsall[mx,bx,sx,rx,4]))" c="consistent lick only tr=$(ntrialslickall[mx,1,sx,rx,1]+ntrialsnolickall[mx,1,sx,rx,1]) (go:nogo=$(ntrialsall[mx,1,sx,rx,3]):$(ntrialsall[mx,1,sx,rx,4]))" crel="consistent lick only relevant tr=$(ntrialslickall[mx,1,sx,1,1]+ntrialsnolickall[mx,1,sx,1,1]) (go:nogo=$(ntrialsall[mx,1,sx,1,3]):$(ntrialsall[mx,1,sx,1,4]))"
 
                         # irrelevant, exploratory
@@ -2549,13 +2554,17 @@ function supplementaryfigure4()
                             # normal error bars have no meaning here, beacuse we want to compare within individual mice
                             # so we show here the CV errors improved by the mouse-average
                             # e = @movingaverage(dropdims(mean(accuraciesall[mx:mx,bx,sx,rx,:,3],dims=1)/sqrt(nmice),dims=1), sm)
-                            plot!(ax,timestamps,m,ribbon=e,lw=1,color=colorslick[lx], alpha=0.8, fillalpha=0.1,
-                                label="exploratory, $(labelsrelevancy[2]), $(lickcontrollabel) only trials")
+                            plot!(ax,timestamps,m,ribbon=e,lw=1,color=colorslick[lx], alpha=alphas[rx], fillalpha=0.1,
+                                label="exploratory, $(labelsrelevancy[rx]), $(lickcontrollabel) only trials")
                             
                             # if lx==2
                             plot!(ax,timestamps,mfa,ribbon=efa,lw=3, color=colors[bx], alpha=alphas[rx], fillalpha=0.1,
-                                label="exploratory, all trials")
+                                label="exploratory, $(labelsrelevancy[rx]), all trials")
 
+
+                            explickstats[mx,sx,rx,:] = mean(reshape(accuraciesall[mx,bx,sx,rx,suppresstimes,1],blockwidth,nblocks),dims=1)[1,:]
+                            lickandallstats[mx,sx,rx,1,:] = mean(reshape(accuraciesall[mx,bx,sx,rx,suppresstimes,1],blockwidth,nblocks),dims=1)[1,:]
+                            lickandallstats[mx,sx,rx,2,:] = mean(reshape(accuraciesfullall[mx,bx,sx,rx,suppresstimes,1],blockwidth,nblocks),dims=1)[1,:]
                         end
                         # consistent control                            
                         # mfaconsr = @movingaverage(accuraciesall[mx,1,sx,1,:,1],sm) # consistent control relevant
@@ -2567,9 +2576,11 @@ function supplementaryfigure4()
                         #     plot!(ax,timestamps,mfaconsr,ribbon=efaconsr,lw=3, color=colors[1], alpha=alphas[1], fillalpha=0.1,
                         #         label="consistent, $(labelsrelevancy[1]), $(lickcontrollabel) only trials")
                         # end
-                        if ntrialsall[mx,1,sx,2,1]>=10 
-                            plot!(ax,timestamps,mfacons,ribbon=efacons,lw=3, color=:fuchsia, alpha=0.3, fillalpha=0.1,
-                                label="consistent, $(labelsrelevancy[2]) $(lickcontrollabel) only trials")
+                        if rx==2          # add a consistent control for irrelevant lick only
+                            if ntrialsall[mx,1,sx,2,1]>=10 
+                                plot!(ax,timestamps,mfacons,ribbon=efacons,lw=3, color=:fuchsia, alpha=alphas[rx], fillalpha=0.1,
+                                    label="consistent, $(labelsrelevancy[rx]) $(lickcontrollabel) only trials")
+                            end
                         end
                     end
                 end
@@ -2583,6 +2594,33 @@ function supplementaryfigure4()
                 if sx==2 xlabel!(ax, "time from stimulus onset [s]"); plot!(ax, bottom_margin=40*Plots.px) end
                 # title!(ax, ["$(string(mouseid))\n$(labelsrelevancy[2]) $(labelsconsistency[2])\n",""][sx]*labelsstimulus[sx]*" stimulus")
                 title!(ax, labelsstimulus[sx]*" stimulus")
+
+
+                # relevant vs irrelevant
+                if mx in [2,3]
+                    ttest = OneSampleTTest(explickstats[mx,sx,1,:], explickstats[mx,sx,2,:])
+                    p = pvalue(ttest)
+                    t = ttest.t
+                    annotate!(ax, 3.5, 0.37, text("p=$(round(p,digits=3))\nt=$(round(t,digits=1))", :left, 8))
+                end
+
+                # relevant and irrelevant    lick vs. all
+                if [mx,sx] in [        [2,1], [3,1],          [1,2], [2,2], [3,2], [4,2] ]
+                    ttest = OneSampleTTest(lickandallstats[mx,sx,1,1,:], lickandallstats[mx,sx,1,2,:])
+                    p = pvalue(ttest)
+                    t = ttest.t
+                    annotate!(ax, -1.2, 0.37, text("p=$(round(p,digits=3))\nt=$(round(t,digits=1))", :left, 8))
+                    if [mx,sx] == [4,2]
+                        @info "" lickandallstats[mx,sx,1,1,:] lickandallstats[mx,sx,1,2,:] mean(lickandallstats[mx,sx,1,1,:]) mean(lickandallstats[mx,sx,1,2,:])
+                    end
+                end
+                if [mx,sx] in [ [1,1], [2,1], [3,1], [4,1],          [2,2], [3,2] ]
+                    ttest = OneSampleTTest(lickandallstats[mx,sx,2,1,:], lickandallstats[mx,sx,2,2,:])
+                    p = pvalue(ttest)
+                    t = ttest.t
+                    annotate!(ax, 0.6, 0.37, text("p=$(round(p,digits=3))\nt=$(round(t,digits=1))", :left, 8))
+                end
+
                 
                 if sx==1 @panellabel ax ["A","B","C","D"][mx] -0.25 1.15 end
                 if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
