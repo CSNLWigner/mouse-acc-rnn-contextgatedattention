@@ -17,11 +17,16 @@ modelanalysispath: results/model/analysis/
 
 # physiology flags
 recalculatedecodevariables: false
+recalculatechoicegeometry: false
+recalculatepredictivechoicegeometry: false
 recalculateoutcomehistory: false
 recalculatecognitivesurplus: false
 recalculatedecoderelevancy: false
 recalculatesuppressionbehaviour: false
+recalculatepredictneurons: false
 behaviouralmodellowprob: 0.001
+generativeconsecutivesamplingrepeats: 1000000
+
 
 # model flags
 trainmodel: false       # train
