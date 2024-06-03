@@ -78,7 +78,7 @@ function decodevariables(mouseid::Symbol, nwbfile::PyObject)
     end
 
     return
-    ax = plot(layout=(1,ntasks),size=(1.2* ntasks*300, 1*300), legend=false, left_margin=30*Plots.px, bottom_margin=30*Plots.px)
+    ax = plot(layout=(1,ntasks),size=(1.2* ntasks*300, 1*300), legend=false, left_margin=30*Plots.px, top_margin=30*Plots.px, bottom_margin=30*Plots.px)
     sm = 31 # smoothing window
     for taskindex in eachindex(cols)
         axs = ax[taskindex]
@@ -107,7 +107,68 @@ function decodevariables(mouseid::Symbol, nwbfile::PyObject)
 
 end
 
+function decodecontexttimecourse(mouseid::Symbol, nwbfile::PyObject)
+    @info "mouseid" mouseid
+    triallist = nwbdf(nwbfile.trials)
+    filter!(:difficulty=>u->u=="complex",triallist)
 
+    nhold = 10
+    nfolds = 2
+    
+    if config[:recalculatedecodevariables]
+
+        neuronsspiketimeslist = gettrialrelativespiketimes(triallist, nwbfile.units)         # get spikes for trials
+        timestamps, instantenousfiringrates = smoothinstantenousfiringrate(neuronsspiketimeslist, config[:stimuluslength], binsize=config[:dt])     # smooth 
+
+        ntrials,ntimestamps,nneurons = size(instantenousfiringrates)
+        accuracies = zeros(2,ntimestamps,3)               # 1st dim: hold mid and hold fringe
+        coefficients = zeros(2,ntimestamps,nneurons+1,3)
+
+        for r in 1:2
+            resampling = train_test_pairs_holdmidedge(1:nrow(triallist), triallist[!,:context], nhold=nhold, cv=nfolds, reverse=Bool(r-1))
+            # @info "" resampling
+            _, accuracies[r,:,:], coefficients[r,:,:,:] =
+                decodevariablefromactivity(instantenousfiringrates, triallist[!,:context], halfwidth=2, nfolds=nfolds, resampling=resampling)
+        end
+        @save(config[:cachepath]*"subspace/decode,context,trialcourse-$(string(mouseid)).bson", timestamps, accuracies, coefficients)
+    else
+        @load(config[:cachepath]*"subspace/decode,context,trialcourse-$(string(mouseid)).bson", @__MODULE__, timestamps, accuracies, coefficients)
+    end
+
+    accuraciesholdmidedgeout = copy(accuracies)
+
+    # load uncontrolled context
+    @load(config[:cachepath]*"subspace/decode,variables-$(string(mouseid)).bson", @__MODULE__, accuracies, coefficients)
+
+    # plot
+    ax = plot(layout=(1,3),size=(1.2* 3*300, 1*300), legend=false, left_margin=30*Plots.px, top_margin=30*Plots.px, bottom_margin=30*Plots.px)
+    sm = 51 # smoothing window
+    for (i,accur) in enumerate((accuraciesholdmidedgeout[1,:,:],accuraciesholdmidedgeout[2,:,:],accuracies[3,:,:]))
+        axs = ax[i]
+        @decoderbackground(axs, config[:stimulusstart], config[:stimulusend], config[:waterstart], :black)
+        m = MathUtils.convolve(accur[:,1],ones(sm)./sm)
+        e = MathUtils.convolve(accur[:,3],ones(sm)./sm)
+        plot!(axs, timestamps, m, ribbon=e, lw=2, fillalpha=0.3, color=[:deeppink,:fuchsia,:mediumvioletred][i], label=nothing)
+        xlims!(-1.2,4.2)
+        ylims!(axs,0.45,1.05)
+        title!(axs, ["\nhold fringe out", "\nhold mid out","\ncontrol"][i])
+        if i==1 ylabel!(axs, "context accuracy") end
+        xlabel!(axs, "time (s)")
+    end
+
+    plot!(ax[2], title="decode variables "*string(mouseid)*", neurons: $(size(coefficients,3)-1)\nhold mid out")
+
+
+
+
+    if config[:showplot]
+        display(ax)
+    end
+    if config[:saveplot]
+        savefig(joinpath(config[:resultspath],"subspace/","decode,context,trialcourse-$(string(mouseid)).png"))
+    end
+
+end
 
 
 
@@ -1143,7 +1204,7 @@ function predictneurons(mouseid::Symbol, nwbfile::PyObject; consistentonly=false
     # @info "" cols(predictorcombinations[1])
 
     labelscontexts = ["all", "visual", "auditory"]
-    trialscontexts = [trues(ntrials), triallist[!,:context] .== "visual", triallist[!,:context] .== "audio" ]
+    trialscontexts = [trues(ntrials), triallist[!,:context].=="visual", triallist[!,:context].=="audio",]
     ncontexts = length(trialscontexts)
 
 

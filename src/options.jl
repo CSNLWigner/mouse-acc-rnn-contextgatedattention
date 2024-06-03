@@ -31,6 +31,9 @@ argparsesettings = ArgParseSettings()
     "decodevariables"
         help = "decode stimulus, context and decision"
         action = :command
+    "decodecontexttimecourse"
+        help = "decode context along the session"
+        action = :command
     "choicegeometry"
         help = "compare stimulus and decision geometry"
         action = :command
@@ -142,6 +145,9 @@ end
         action = :command
     "S3"
         help = "supplementary figure 3"
+        action = :command
+    "S4"
+        help = "supplementary figure 4"
         action = :command
     "stats"
         help = "calculate stats"
