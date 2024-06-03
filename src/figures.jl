@@ -678,15 +678,58 @@ function figure2()
 
 
 
+
+    # block averaging the accuracies timeseries to remove the autocorrelation
+    # display the s.t.d. of the accuracies with various time windows for ACC
+    blocklengths = 2:300
+    ss = [[],[],[],[]]
+    ac = zeros(4,300,8)
+    for bl in blocklengths
+        for mx in 1:4
+            # standard deviation
+            s = []
+            nblocks = 300 ÷ bl
+            for b in 1:nblocks
+                for bx in 1:2, sx in 1:2, rx in 1:2
+                    blockrange = 150 .+ ((b-1)*bl+1:b*bl)
+                    m = dropdims(mean(accuraciesallareas[2][mx:mx,bx,sx,rx,blockrange,1],dims=1),dims=1)
+                    # @info "block length $bl block number $b" blockrange size(m) size(se)
+                    push!(s, std(m))
+                end
+            end
+            push!(ss[mx], s)
+            
+            # autocorrelation:
+            for bx in 1:2, sx in 1:2, rx in 1:2
+                a = autocor(accuraciesallareas[2][mx,bx,sx,rx,151:450,1],0:299)
+                ac[mx,:,bx+(sx-1)*2+(rx-1)*4] = a
+            end
+        end
+    end
+    ax = axs[frblax+5]
+    hline!(ax, [0], color=:grey, ls=:dash, label=nothing)
+    for mx in 1:4
+        for (bx,bl) in enumerate(blocklengths)
+            # @info "" bx bl ss[bx]
+            # scatter!(ax, fill(bl,length(ss[mx][bx])), ss[mx][bx], color=:blue)
+            # scatter!(ax[1], [bl], [mean(ss[mx][bx])], yerror=std(ss[mx][bx])/sqrt(length(ss[mx][bx])))
+            # boxplot!(axautocorrelation, fill(bl,length(ss[bx])), ss[bx], color=:blue, alpha=0.5, outliers=false, whisker_range=1, notch=true)
+        end
+        plot!(ax, 0:299, mean(ac[mx,:,:],dims=2), ribbon=std(ac[mx,:,:],dims=2)/sqrt(8), color=:grey, alpha=0.5, label=nothing)
+    end
+    plot!(ax, 0:299, mean(ac[:,:,:],dims=(1,3))[1,:,1], ribbon=std(ac[:,:,:],dims=(1,3))[1,:,1]/sqrt(8*4), lw=3, color=:black, label=nothing)
+    xticks!(ax,0:50:300,string.(0:0.5:3))
+    xlabel!(ax, "lag [s]")
+    ylabel!(ax, "autocorrelation")
+    @panellabel ax "K" -0.30 1.20
+    
+
+
     ax = axs[frblax+10]
     colors = [ :purple :darkorange ]     # brainarea × consistency
     # create the difference between relevant and irrelevant projections
     # accuraciesallareas is a (narea)(nmice,nstates,nmodalities,nrelevancies,ntimestamps,3)
-    # timerange = (timestamps .>= config[:stimulusstart]+0.5) .& (timestamps .< config[:waterstart])
-    # timerange = (timestamps .>= config[:stimulusstart]+0.5) .& (timestamps .< config[:stimulusend] + config[:posteventpadding])
-    # timerange = (timestamps .>= config[:stimulusstart]+0.75) .& (timestamps .< config[:stimulusend])
     timerange = (timestamps .>= config[:stimulusstart]+0.60) .& (timestamps .< config[:stimulusend])
-    # timerange = 151:450
     @info "" sum(timerange)
     blocksize = 60
     nblocks = sum(timerange) ÷ blocksize        # number of blocks within the valid time range for suppression
@@ -736,7 +779,6 @@ function figure2()
     hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
     plot!(ax, legends=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
     plot!(ax, left_margin=50*Plots.px)
-    # annotate!(ax, tickpoints, -0.08, text.(ps .< 0.05, ["*" "ns"]), fontsize=12, halign=:center, valign=:bittin, color=:black)
     annotate!(ax, tickpoints, [0.3,0.3,0.6,0.6], text.( psr, 8, :black, :top, :center))#, fontsize=6, halign=:center, valign=:bittin, color=:black)
     # do the above annotate with just 2 digits and scientific notation of the p-values
     
