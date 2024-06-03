@@ -26,7 +26,7 @@ function figure1()
     xlims!(ax, 0,1320)          # 1320  x 495
     ylims!(ax, 0,495)
     plot!(ax, xticks=false, yticks=false, axis=false)
-    @panellabel ax "A" -0.12 -0.18
+    @panellabel ax "a" -0.12 -0.18
 
     
 
@@ -51,7 +51,7 @@ function figure1()
     plot!(ax, yticks=nothing, xticks=[0,2,3])
     xlabel!(ax, "time from stimulus onset [s]")
     @decoderbackground ax 0 3 2 :darkgrey
-    @panellabel ax "B" -0.1 1.15
+    @panellabel ax "b" -0.1 1.15
 
 
 
@@ -113,7 +113,7 @@ function figure1()
     plot!(ax, yaxis=false)
     plot!(ax, bottom_margin=20*Plots.px)
     
-    @panellabel axs[3] "C" -0.12 1.02
+    @panellabel axs[3] "c" -0.12 1.02
 
 
     
@@ -163,7 +163,7 @@ function figure1()
 
     # end
 
-    # @panellabel ax "D" -0.20 3
+    # @panellabel ax "d" -0.20 3
 
     
 
@@ -187,7 +187,7 @@ function figure1()
     plot!(ax, xticks=false, yticks=[0,10,20,30], ytickfontsize=6, ylabel="number\nof trials", ylabelfontsize=7, yguidehalign=:left)
     annotate!(ax, 1.5, 42, text("visual context", :navy, :left, 6))
     annotate!(ax, 1.5, 36, text("auditory context", :darkgreen, :left, 6))
-    @panellabel ax "D" -0.40 1.15
+    @panellabel ax "d" -0.40 1.15
 
 
 
@@ -232,7 +232,7 @@ function figure1()
     xlims!(ax, 0, nmice+1)
     # ylims!(ax, 0, 35)
     plot!(ax, xticks=(1:nmice,[]), xlabel="mice", ytickfontsize=6, ylabel="log probab. of\nconsist. by chance", ylabelfontsize=6, yguidehalign=:left)
-    @panellabel ax "E" -0.40 0.95
+    @panellabel ax "e" -0.40 0.95
 
 
 
@@ -244,9 +244,16 @@ function figure1()
     xlims!(ax, 0, nmice+1)
     ylims!(ax, 0, 1.05)
     plot!(ax, xticks=false, yticks=[0,1], ytickfontsize=6, ylabel="fraction\ncorrect", ylabelfontsize=7, yguidehalign=:left)
-    @panellabel ax "F" -0.40 0.95
+    @panellabel ax "f" -0.40 0.95
 
 
+    sourcedata = DataFrame( mouseid=reshape(repeat(reshape(mouseids,1,:),2,1),:,1)[:,1],
+                            context=reshape(repeat(["visual", "audio"],1,4),1,:)[1,:],
+                            nhighperfs=reshape(nhighperfs,:,1)[:,1],
+                            proportionhighperfs=reshape(nhighperfs ./ ntrials,:,1)[:,1], 
+                            probnumconsistents=reshape(prob_numconsistents,:,1)[:,1],
+                            fractioncorrects=reshape(fractioncorrects,:,1)[:,1] )
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig1","fig1-def.csv"), sourcedata)
 
 
 
@@ -267,7 +274,7 @@ function figure1()
             annotate!(ax,nmice+0.5+2*wh,-4.50-hh*(mx-1)+hh/2,text([" context opposite"," context aware"][mx],:vcenter,:left,6))
         end
     end
-    @panellabel ax "G" -0.40 0.95
+    @panellabel ax "g" -0.40 0.95
 
 
     ix = 5 # lls 2/2       # models 2
@@ -288,11 +295,15 @@ function figure1()
                                                           :vcenter,:left,6))
         end
     end
-    @panellabel ax "H" -0.40 0.95
+    @panellabel ax "h" -0.40 0.95
 
+    sourcedata = DataFrame(mouseid=reshape(repeat(reshape(mouseids,1,:),2,1),:,1)[:,1],
+                           context=reshape(repeat(["visual", "audio"],1,4),1,:)[1,:])
+    for (k,name) in enumerate(["contextopposite","contextaware"," contextunaware"," contextawarebias","contextawarelapse"])
+        sourcedata[!,Symbol(name)] = reshape(lls[:,:,k],nmice*2)
+    end
 
-
-        
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig1","fig1-gh.csv"), sourcedata)
 
 
 
@@ -408,7 +419,7 @@ function figure2()
         # annotate specific cells in next subplots
         yticks!(ax,(vcat([10,20],selectedcells[:]), vcat(string.([10,20]),["c","d","e","f"])))
         plot!(ax,top_margin=60*Plots.px, left_margin=40*Plots.px)
-        @panellabel ax ["A","B"][cx] -0.10 1.18
+        @panellabel ax ["a","b"][cx] -0.10 1.18
     end
 
 
@@ -428,6 +439,7 @@ function figure2()
 
             @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:darkgrey)
 
+            sourcedata = DataFrame()
             for rx in 1:2
                 cx = 2 - (clx==rx) # context index
                 context = ("visual","audio")[cx]
@@ -442,12 +454,17 @@ function figure2()
                 plot!(ax, ts, m, ribbon=e, color=colorcondition[clx,rx], lw=3, ls=lscondition[gx], alpha=alphacondition[gx], fillalpha=0.2*alphacondition[gx],
                     label="$(labelstimulus[clx]) stim. $(labelgonogo[clx,gx]) $(labelrelevance[rx]) ($context context)")
                 
+                sourcedata[!,Symbol("time"*labelrelevance[rx])] = ts
+                sourcedata[!,Symbol("firingrate"*labelrelevance[rx]*"mean")] = m
+                sourcedata[!,Symbol("firingrate"*labelrelevance[rx]*"sem")] = e
             end
+            CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig2","fig2-$(["c","d","e","f"][(clx-1)*2+ix]).csv"), sourcedata)
+
             ylims!(ax,([[0,49],[0,69],[0,79],[0,13]][(clx-1)*2+ix])...)
             # yticks!(ax,0:20:max(ylim()))
             if ix+clx==2 ylabel!(ax, "firing rate [Hz]") end
             xlabel!(ax, "time from stimulus onset [s]")
-            @panellabel ax ["C","D","E","F"][(clx-1)*2+ix] (-0.16,-0.21)[1+(ix+clx==2)] 1.06
+            @panellabel ax ["c","d","e","f"][(clx-1)*2+ix] (-0.16,-0.21)[1+(ix+clx==2)] 1.06
             plot!(ax, legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8)
             plot!(ax,top_margin=40*Plots.px, bottom_margin=40*Plots.px)
         end
@@ -503,6 +520,8 @@ function figure2()
 
 
     sm = 31 # smoothing window
+    sourcedata = DataFrame()
+    sourcedata[!,Symbol("timestamps")] = timestamps
     for (bx,mouseind) in enumerate((mousev1ind,mouseaccind))
         for (stimulusindex,stimulus) in enumerate(labelsstimulus)
             ax = axs[frblax+(stimulusindex-1)*5+bx] # axs[stimulusindex,bx]
@@ -516,17 +535,19 @@ function figure2()
                         label=labelsrelevancies[contextindex,stimulusindex]*" ("*context*" context)")
                 if bx==1 ylabel!(ax, "accuracy"); plot!(ax, left_margin=30*Plots.px) end
                 if stimulusindex==2 xlabel!(ax, "time from stimulus onset [s]") end
+                sourcedata[!,Symbol("accuracy"*["V1","ACC"][bx]*labelsrelevancies[contextindex,stimulusindex]*context*"mean")] = m
+                sourcedata[!,Symbol("accuracy"*["V1","ACC"][bx]*labelsrelevancies[contextindex,stimulusindex]*context*"sem")] = e
             end
             xlims!(ax,-1.2,4.2)
             ylims!(ax,0.45,1.05)
             plot!(ax,legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
             title!(ax, [["V1\n","ACC\n"][bx],""][stimulusindex]*stimulus*" stimulus",  titlefont=font(12))
             if stimulusindex==1
-                @panellabel ax ["G","H"][bx] -0.30 1.20
+                @panellabel ax ["g","h"][bx] -0.30 1.20
             end
         end
     end
-
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig2","fig2-gh.csv"), sourcedata)
 
 
 
@@ -552,6 +573,8 @@ function figure2()
     alphas = [1.0 0.3]
     relevancylabels = ["relevant","irrelevant"]
     consistencylabels = ["consistent","exploratory"]
+    sourcedata = DataFrame()
+    sourcedata[!,Symbol("timestamps")] = timestamps
     for (mx,brainarea) in enumerate(["V1","ACC"])
     
         mouseids = collectsubjectids(brainarea)
@@ -582,6 +605,9 @@ function figure2()
                     e = @movingaverage(dropdims(mean(accuraciesall[:,bx,sx,rx,:,3],dims=1)/sqrt(nmice),dims=1), sm)
                     plot!(ax,timestamps,m,ribbon=e,lw=3,color=colors[bx], alpha=alphas[rx], fillalpha=0.1,
                         label=relevancylabels[rx]*", "*consistencylabels[bx])
+                    
+                    sourcedata[!,Symbol("accuracy"*brainarea*relevancylabels[rx]*consistencylabels[bx]*"mean")] = m
+                    sourcedata[!,Symbol("accuracy"*brainarea*relevancylabels[rx]*consistencylabels[bx]*"sem")] = e
                 end
             end
             plot!(ax,legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing)
@@ -592,12 +618,12 @@ function figure2()
             title!(ax, ["$(brainarea)\n",""][sx]*labelsstimulus[sx]*" stimulus",  titlefont=font(12))
             if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
             plot!(ax, bottom_margin=40*Plots.px)
-            if sx==1 @panellabel ax ["I","J"][mx] -0.30 1.20 end
+            if sx==1 @panellabel ax ["i","j"][mx] -0.30 1.20 end
         end
     end
-
-
-
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig2","fig2-ij.csv"), sourcedata)
+    
+    
 
     # block averaging the accuracies timeseries to remove the autocorrelation
     # display the s.t.d. of the accuracies with various time windows for ACC
@@ -626,36 +652,48 @@ function figure2()
             end
         end
     end
+    sourcedata = DataFrame()
+    sourcedata[!,Symbol("lag")] = collect(0:299)./1000
     ax = axs[frblax+5]
     hline!(ax, [0], color=:grey, ls=:dash, label=nothing)
     for mx in 1:4
-        for (bx,bl) in enumerate(blocklengths)
+        # for (bx,bl) in enumerate(blocklengths)
             # @info "" bx bl ss[bx]
             # scatter!(ax, fill(bl,length(ss[mx][bx])), ss[mx][bx], color=:blue)
             # scatter!(ax[1], [bl], [mean(ss[mx][bx])], yerror=std(ss[mx][bx])/sqrt(length(ss[mx][bx])))
             # boxplot!(axautocorrelation, fill(bl,length(ss[bx])), ss[bx], color=:blue, alpha=0.5, outliers=false, whisker_range=1, notch=true)
-        end
-        plot!(ax, 0:299, mean(ac[mx,:,:],dims=2), ribbon=std(ac[mx,:,:],dims=2)/sqrt(8), color=:grey, alpha=0.5, label=nothing)
+        # end
+        m = mean(ac[mx,:,:],dims=2)[:,1]
+        e = std(ac[mx,:,:],dims=2)[:,1]/sqrt(8)
+        plot!(ax, 0:299, m, ribbon=e, color=:grey, alpha=0.5, label=nothing)
+        sourcedata[!,Symbol("autocorrelationmouse$(mx)mean")] = m
+        sourcedata[!,Symbol("autocorrelationmouse$(mx)sem")] = e
     end
     plot!(ax, 0:299, mean(ac[:,:,:],dims=(1,3))[1,:,1], ribbon=std(ac[:,:,:],dims=(1,3))[1,:,1]/sqrt(8*4), lw=3, color=:black, label=nothing)
     xticks!(ax,0:50:300,string.(0:0.5:3))
     xlabel!(ax, "lag [s]")
     ylabel!(ax, "autocorrelation")
-    @panellabel ax "K" -0.30 1.20
-    
+    @panellabel ax "k" -0.30 1.20
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig2","fig2-k.csv"), sourcedata)
+
 
 
     ax = axs[frblax+10]
     colors = [ :purple :darkorange ]     # brainarea × consistency
     # create the difference between relevant and irrelevant projections
     # accuraciesallareas is a (narea)(nmice,nstates,nmodalities,nrelevancies,ntimestamps,3)
+    # timerange = (timestamps .>= config[:stimulusstart]+0.5) .& (timestamps .< config[:waterstart])
+    # timerange = (timestamps .>= config[:stimulusstart]+0.5) .& (timestamps .< config[:stimulusend] + config[:posteventpadding])
+    # timerange = (timestamps .>= config[:stimulusstart]+0.75) .& (timestamps .< config[:stimulusend])
     timerange = (timestamps .>= config[:stimulusstart]+0.60) .& (timestamps .< config[:stimulusend])
+    # timerange = 151:450
     @info "" sum(timerange)
     blocksize = 60
     nblocks = sum(timerange) ÷ blocksize        # number of blocks within the valid time range for suppression
     tickpoints = Float64[]
     ps = Float64[]
     ts = Float64[]
+    sourcedata = DataFrame()
     for (mx,brainarea) in enumerate(["V1","ACC"])
         # individual mice
         d = accuraciesallareas[mx][:,:,:,1,timerange,1] .- accuraciesallareas[mx][:,:,:,2,timerange,1]
@@ -683,16 +721,22 @@ function figure2()
             ttest = OneSampleTTest(d[1,:],d[2,:])
             push!(ps, pvalue(ttest))
             push!(ts, ttest.t)
+
+            sourcedata[!,Symbol(brainarea*"consistent"*labelsstimulus[sx])] = d[1,:]
+            sourcedata[!,Symbol(brainarea*"exploratory"*labelsstimulus[sx])] = d[2,:]
         end
     end
     @info "p" ps
     @info "t" ts
+
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig2","fig2-l.csv"), sourcedata)
 
     pss = ifelse.(ps .< 0.05, "*", "ns")
     psr = pss .*" \np=" .* string.(round.(ps,digits=3))
     hline!(ax,[0],color=:grey, ls=:dash, label=nothing)
     plot!(ax, legends=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
     plot!(ax, left_margin=50*Plots.px)
+    # annotate!(ax, tickpoints, -0.08, text.(ps .< 0.05, ["*" "ns"]), fontsize=12, halign=:center, valign=:bittin, color=:black)
     annotate!(ax, tickpoints, [0.3,0.3,0.6,0.6], text.( psr, 8, :black, :top, :center))#, fontsize=6, halign=:center, valign=:bittin, color=:black)
     # do the above annotate with just 2 digits and scientific notation of the p-values
     
@@ -705,7 +749,7 @@ function figure2()
     # title!(ax,"mouse")
     ylabel!(ax, "accuracy difference\nrelevant - irrelevant")
 
-    @panellabel ax "L" -0.30 1.20
+    @panellabel ax "l" -0.30 1.20
 
 
 
@@ -765,20 +809,27 @@ function figure3()
     sm = 31 # smoothing window
     cx = 3  # context index
     @decoderbackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
+    sourcedata = DataFrame()
+    sourcedata[!,Symbol("timestamps")] = timestamps
     for n in 1:nmice
         m = MathUtils.convolve( accuraciesmice[n,cx,:,1],ones(sm)./sm)
         plot!(ax, timestamps, m, lw=1, color=:grey, alpha=0.3, label=nothing)
+        sourcedata[!,Symbol("accuracymouse$(n)")] = m
     end
     m = MathUtils.convolve( dropdims(mean(accuraciesmice[:,cx,:,1],dims=1),dims=1), ones(sm)./sm)
     semcv = dropdims(mean(accuraciesmice[:,cx,:,3],dims=1),dims=1)
     e = MathUtils.convolve( dropdims(std(accuraciesmice[:,cx,:,1],dims=1),dims=1)/sqrt(nmice)+semcv, ones(sm)./sm)
+    sourcedata[!,Symbol("accuracyallmean")] = m
+    sourcedata[!,Symbol("accuracyallsem")] = e
+
     plot!(ax, timestamps, m, ribbon=e, lw=2, fillalpha=0.3, color=:mediumvioletred, label=nothing)
     xlims!(ax,-1.2,4.2)
     ylims!(ax,0.45,1.05)
     ylabel!(ax, "context accuracy")
     xlabel!(ax, "time [s]")
 
-
+    @panellabel ax "a"
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig3","fig3-a.csv"), sourcedata)
 
 
 
@@ -817,9 +868,10 @@ function figure3()
     ylims!(ax, -0.46, 0.46)
     ylabel!(ax, "context accuracy difference\nconsistent - exploratory")
     
-    
-    
-
+    @panellabel ax "b"
+    sourcedata = DataFrame(Pair.(mouseids,[cognitivesurplus[mx,:] for mx in 1:nmice])...)
+    insertcols!(sourcedata, 1, :timestamps => timestamps)
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig3","fig3-b.csv"), sourcedata)
 
 
     
@@ -840,10 +892,15 @@ function figure3()
     sm = 51
     accuracy = reshape(permutedims(accuracieslists[n_example][:,vx,end:-1:begin,:,:],(1,3,2,4)),2,nlookback*ntimestamps,3)
     timestampslookback = [timestamps; timestamps.+6; timestamps.+2*6]
+    sourcedata = DataFrame(timestampslookback=timestampslookback)
     for cx in eachindex(contexts)
-        plot!(ax, timestampslookback, @movingaverage(accuracy[cx,:,1],sm),
-              ribbon=@movingaverage(accuracy[cx,:,3],sm), lw=2, fillalpha=0.3, color=colors[cx], label=contexts[cx]*" context")
+        m = @movingaverage(accuracy[cx,:,1],sm)
+        e = @movingaverage(accuracy[cx,:,3],sm)
+        plot!(ax, timestampslookback, m, ribbon=e, lw=2, fillalpha=0.3, color=colors[cx], label=contexts[cx]*" context")
+        sourcedata[!,Symbol("accuracy"*contexts[cx]*"mean")] = m
+        sourcedata[!,Symbol("accuracy"*contexts[cx]*"sem")] = e
     end
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig3","fig3-c.csv"), sourcedata)
     for h in 1:nlookback
         @decoderbackground(ax, config[:stimulusstart]+(nlookback-h)*6, config[:stimulusend]+(nlookback-h)*6, config[:waterstart]+(nlookback-h)*6, bg=nothing)
     end
@@ -852,6 +909,9 @@ function figure3()
     plot!(ax,legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing, bottom_margin=50*Plots.px)
     xlabel!(ax, "time from reference trial [s]")
     ylabel!(ax, "decision accuracy")
+
+    @panellabel ax "c"
+
 
 
 
@@ -872,13 +932,17 @@ function figure3()
     plot!(ax,[0,b[1,1]].+o,[0,b[2,1]].+o,color=:navy,lw=5)
     plot!(ax,[0,b[1,2]].+o,[0,b[2,2]].+o,color=:darkgreen,lw=5)
     # plot mean early projections
+    sourcedata = DataFrame(visual=Int[], auditory=Int[], v=Float64[], a=Float64[])
     for (vix,vi) in enumerate([45,135]), (aux,au) in enumerate([5000,10000])
         mask = (triallist[!,:degree].==vi) .& (triallist[!,:freq].==au)
         scatter!(ax,S[mask,1],S[mask,2], color=colors[vix,aux], markerstrokewidth=0, markersize=3)         # label=string(vi)*"° "*string(au)*" Hz"
 
         # legend annotation
         scatter!(ax, -0.10 .+ [0] .+ (vix-1)*w,  0.17 .+ [0] .+ (aux-1)*w, color=colors[vix,aux], markerstrokewidth=0, markersize=3)
+
+        sourcedata = vcat(sourcedata, DataFrame(visual=vi, auditory=au, v=S[mask,1], a=S[mask,2]))
     end
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig3","fig3-d.csv"), sourcedata)
     annotate!(ax, -0.10+w/2, 0.17+w+0.02, "visual\ngo nogo", font(pointsize=6, color=:black, halign=:center, valign=:bottom))
     annotate!(ax, -0.10-w+0.005, 0.17+w/2,  "auditory nogo\ngo", font(pointsize=6, color=:black, halign=:right, valign=:center))
 
@@ -888,6 +952,7 @@ function figure3()
     xlabel!(ax,"visual DV")
     ylabel!(ax,"auditory DV\n(orthogonal projection)")
 
+    @panellabel ax "d"
 
 
 
@@ -934,6 +999,9 @@ function figure3()
     ylims!(ax,0,15)
     plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing, yaxis=false)
     xlabel!(ax, "angle between DVs [°]")
+    @panellabel ax "e"
+
+
 
     ax = axs[2,3]
     scatter!(ax, angles[:,1,3], micercoords.+1, color=:purple, markerstrokewidth=0, label="context - visual, p=$(round(ps[2],digits=2))")
@@ -944,6 +1012,10 @@ function figure3()
     ylims!(ax,0,15)
     plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing, markerstrokewidth=0, yaxis=false)
     xlabel!(ax, "angle between DVs [°]")
+    @panellabel ax "f"
+
+    sourcedata = DataFrame(mouseids=mouseids,visualauditory=angles[:,1,2], contextvisual=angles[:,1,3], contextauditory=angles[:,2,3], contextdecision=angles[:,3,4])
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig3","fig3-ef.csv"), sourcedata)
 
 
 
@@ -952,9 +1024,6 @@ function figure3()
 
 
 
-
-
-    @panellabels axs
     
     plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)#, ytickfonthalign=:left, xtickfontvalign=:bottom, xguidevalign=:top)
     
@@ -1024,7 +1093,7 @@ function figure4()
     # plot!(ax, map(u->(u[1]+10.65,u[2]+4.35), Plots.partialcircle(150/360*2*pi,155/360*2*pi,2,1.75)), color=:black, lw=3, arrow=(:tail,:closed))
     # annotate!(ax, 10.5, 0, text("previous state", 10, :center, :bottom, :black, "Helvetica Bold"))
 
-    # @panellabel ax "A" -0.2 1.05
+    # @panellabel ax "a" -0.2 1.05
 
     
     rnnschematicsimage = load(joinpath(config[:publicationfigurespath],"parts/","RNN-architecture-schematics-circle.png"))
@@ -1033,7 +1102,7 @@ function figure4()
     # ylims!(ax, 110,600)
     plot!(ax, xticks=false, yticks=false, axis=false)
 
-    @panellabel ax "A" -0.25 -0.82
+    @panellabel ax "a" -0.25 -0.82
 
     
 
@@ -1071,7 +1140,16 @@ function figure4()
     xlabel!(ax, "training epoch")
     ylabel!(ax, "acc. / frac. corr.")
 
-    @panellabel ax "B" -0.3 1.05
+    @panellabel ax "b" -0.3 1.05
+    sourcedata = DataFrame()
+    sourcedata[!,Symbol("epoch")] = snapshots
+    sourcedata[!,Symbol("contextaccuracymean")] = cm
+    sourcedata[!,Symbol("contextaccuracysem")] = ce
+    sourcedata[!,Symbol("fractioncorrectcongruentmean")] = fm[:,2]
+    sourcedata[!,Symbol("fractioncorrectcongruentsem")] = fe[:,2]
+    sourcedata[!,Symbol("fractioncorrectincongruentmean")] = fm[:,3]
+    sourcedata[!,Symbol("fractioncorrectincongruentsem")] = fe[:,3]
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig4","fig4-b.csv"), sourcedata)
 
 
 
@@ -1097,8 +1175,14 @@ function figure4()
     ylabel!(ax, "acc. / frac. corr.")
     xlabel!(ax, "timesteps from reference trial")
 
+    @panellabel ax "c" -0.13 1.05
 
-    @panellabel ax "C" -0.13 1.05
+    sourcedata = DataFrame()
+    sourcedata[!,Symbol("times")] = times
+    sourcedata[!,Symbol("fractioncorrectdecision")] = fractioncorrects[end,:,4]
+    sourcedata[!,Symbol("fractioncorrectdecisionmean")] = contextaccuracy[end,:,1]
+    sourcedata[!,Symbol("fractioncorrectcontext")] = contextaccuracy[end,:,2]
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig4","fig4-c.csv"), sourcedata)
 
 
 
@@ -1121,10 +1205,14 @@ function figure4()
     @load(joinpath(config[:modelanalysispath],"outcomehistory/","outcomehistory-$(string(modelid)).bson"), @__MODULE__, accuracieslist, coefficientslist)
     accuracy = reshape(permutedims(accuracieslist[:,vx,end:-1:begin,:,:],(1,3,2,4)),2,nlookback*ntimestamps,3)
     timestampslookback = [timestamps; timestamps.+Ts[end][end]; timestamps.+2*+Ts[end][end]]
+    sourcedata = DataFrame(timestampslookback=timestampslookback)
     for cx in eachindex(contexts)
         plot!(ax, timestampslookback, accuracy[cx,:,1], ribbon=accuracy[cx,:,3], 
                   lw=2, fillalpha=0.3, color=colors[cx], label=contexts[cx]*" context")
+        sourcedata[!,Symbol("accuracy"*contexts[cx]*"mean")] = accuracy[cx,:,1]
+        sourcedata[!,Symbol("accuracy"*contexts[cx]*"sem")] = accuracy[cx,:,3]
     end
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig4","fig4-d.csv"), sourcedata)
     for h in 1:nlookback
         @decoderbackground(ax, Ts[2][begin]+(nlookback-h)*Ts[end][end], Ts[3][end]+(nlookback-h)*Ts[end][end], Ts[2][end]+(nlookback-h)*Ts[end][end], bg=nothing)
     end
@@ -1134,7 +1222,7 @@ function figure4()
     xlabel!(ax, "timesteps from reference trial")
     ylabel!(ax, "decision accuracy")
 
-    @panellabel ax "D" -0.3 1.1
+    @panellabel ax "d" -0.3 1.1
 
 
     
@@ -1183,7 +1271,7 @@ function figure4()
     xticks!(ax, [45, 90, 135])
     plot!(ax, right_margin=0*Plots.px)    # keep together the same letter-labeled panels
 
-    @panellabel ax "E" -0.3 1.1
+    @panellabel ax "e" -0.3 1.1
 
     ax = axs[6]
 
@@ -1213,7 +1301,14 @@ function figure4()
     xticks!(ax, [45, 90, 135])
     plot!(ax, left_margin=0*Plots.px, right_margin=30*Plots.px)    # keep together the same letter-labeled panels
 
-    @panellabel ax "F" -0.3 1.1
+    @panellabel ax "f" -0.3 1.1
+
+    sourcedata = DataFrame()
+    sourcedata[!,Symbol("anglesvisualauditory")] = angles[:,comparetimepoints[1],1] 
+    sourcedata[!,Symbol("anglescontextvisual")] = angles[:,comparetimepoints[2],2]
+    sourcedata[!,Symbol("anglescontextauditory")] = angles[:,comparetimepoints[3],3]
+    sourcedata[!,Symbol("anglescontextdecision")] = angles[:,comparetimepoints[4],4]
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig4","fig4-ef.csv"), sourcedata)
 
 
 
@@ -1230,6 +1325,7 @@ function figure4()
     labelstimulus = ["visual","auditory"]
     labelinstr = ["go","nogo"]
     colors = [:deepskyblue :blue; :lime :green]
+    sourcedata = DataFrame()
     for sx in 1:2, rx in 1:2
         cx = 2 - (sx==rx)
         ax = axs[6+sx]
@@ -1237,6 +1333,8 @@ function figure4()
         # plot!(ax, m', color=colors[sx,rx], ls=[:solid, :dash][gx], alpha=0.2)
         plot!(ax, (1:ntimecourse) .- Ts[2][begin], mean(m,dims=1)', ribbon=std(m,dims=1)'/sqrt(nmodels), color=colors[sx,rx], lw=2, fillalpha=0.3,
                     label=["relevant","irrelevant"][rx]*"($(labelstimulus[cx]) context)")
+        sourcedata[!,Symbol("stimulus"*labelstimulus[sx]*labelinstr[rx]*"mean")] = mean(m,dims=1)[1,:]
+        sourcedata[!,Symbol("stimulus"*labelstimulus[sx]*labelinstr[rx]*"sem")] = std(m,dims=1)[1,:]/sqrt(nmodels)
         if rx==1
             # @nolinebackground(ax,Ts[2][1],Ts[3][end],Ts[3][1],bg=:darkgrey)
             vspan!(ax,[Ts[2][begin],Ts[3][end]].-Ts[2][begin], color=:grey, alpha=0.3, label=nothing)
@@ -1247,7 +1345,7 @@ function figure4()
         end
         if rx==1 && sx==1
             ylabel!(ax,"stimulus projection")
-            @panellabel ax "G" -0.3 1.1
+            @panellabel ax "g" -0.3 1.1
         end
         xlabel!(ax,"timesteps from stimulus onset")
         title!(ax,labelstimulus[sx]*" stimulus")
@@ -1291,7 +1389,7 @@ function figure4()
     # plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
     # ylabel!(ax,"context projection")
     # xlabel!(ax,"timesteps from stimulus onset")
-    # @panellabel ax "H" -0.3 1.1
+    # @panellabel ax "h" -0.3 1.1
 
 
 
@@ -1332,6 +1430,7 @@ function figure4()
     labelsrelevancies = ["relevant" "irrelevant"; "irrelevant" "relevant"]
     colors = [:deepskyblue :green; :blue :lime]     # relevancy x stimulus
     maxcells = 1
+    sourcedata = DataFrame()
     for (sx,stimulus) in enumerate(labelstimulus)
         ax = axs[8+sx]
         vspan!(ax,[Ts[2][begin],Ts[3][end]].-Ts[2][begin], color=:grey, alpha=0.3, label=nothing)
@@ -1349,7 +1448,9 @@ function figure4()
             e = dropdims(std(d,dims=(1)), dims=(1)) ./ sqrt(nmodels*2*maxcells)
             plot!(ax, (1:ntimecourse) .- Ts[2][begin], m, ribbon=e, color=colors[cx,sx], lw=2,
                       label=labelsrelevancies[cx,sx]*" ("*context*" context)")
-
+            
+            sourcedata[!,Symbol(stimulus*context*"mean")] = m
+            sourcedata[!,Symbol(stimulus*context*"sem")] = e
         end
         plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
         title!(ax,labelstimulus[sx]*" stimulus")
@@ -1358,13 +1459,13 @@ function figure4()
         xlabel!(ax,"timesteps from stimulus onset")
         if sx==1
             ylabel!(ax,"activity")
-            @panellabel ax "H" -0.3 1.1
+            @panellabel ax "h" -0.3 1.1
         else
             plot!(ax, left_margin=20*Plots.px)    # keep together the same letter-labeled panels
         end
     
     end
-
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig4","fig4-h.csv"), sourcedata)
     
 
 
@@ -1393,8 +1494,12 @@ function figure4()
     plot!(ax, right_margin=20*Plots.px)
     @info "performance vs activity difference:" r pv t
 
-    @panellabel ax "I" -0.1 1.1
+    @panellabel ax "i" -0.1 1.1
 
+    sourcedata = DataFrame(p=pv,ess=ess)
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig4","fig4-i.csv"), sourcedata)
+
+    
 
     
     plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)#, ytickfonthalign=:left, xtickfontvalign=:bottom, xguidevalign=:top)
@@ -1447,7 +1552,7 @@ function figure5()
     # title!(ax,"total stimulus space")
     # plot!(ax, axis=false)
 
-    # @panellabel ax "A" -0.2 1.1
+    # @panellabel ax "a" -0.2 1.1
 
     # ax = axs[1,2]
     # plot!(ax, aspect_ratio=:equal)
@@ -1489,8 +1594,8 @@ function figure5()
     # xlims!(ax, 40,1380)
     # ylims!(ax, 110,600)
     plot!(ax, xticks=false, yticks=false, axis=false)
-    @panellabel ax "B" -0.18 -0.57
-    @panellabel ax "C"  0.45  -0.57
+    @panellabel ax "b" -0.18 -0.57
+    @panellabel ax "c"  0.45  -0.57
 
 
 
@@ -1531,7 +1636,7 @@ function figure5()
     heatmap!(twinx(axs[(*)(length(axs))]), repeat(-1:1/200:1,1,2), color=colorspace,
               yticks=((0,200,400),("-1 AU","0 AU","1 AU")), colorbar=false, xticks=false)
     
-    @panellabel ax "D" -0.2 -0.2
+    @panellabel ax "d" -0.2 -0.2
  
     ax = axs[3]
     plot!(ax,  axis=false, aspect_ratio=:equal, colormap=false)
@@ -1542,17 +1647,17 @@ function figure5()
     # narrow colorbar:
     # plot!(ax, inset_subplots=(6, bbox(1.0, 0, 0.05, 1, :bottom, :left)), axis=false)
     # heatmap!(twinx(axs[(*)(length(axs))]), repeat(-1:1/200:1,1,2), color=colorspace, yticks=((0,200,400),("-1 AU","0 AU","1 AU")), colorbar=false, xticks=false)
-    @panellabel ax "E" -0.2 -0.2
+    @panellabel ax "e" -0.2 -0.2
 
-
-
+    sourcedata = Tables.table(M)
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig5","fig5-de.csv"), sourcedata)
 
 
 
 
     # activity structure with modality index context index
     # load for V1, ACC, and models
-    panels = ["G","H","F"]
+    panels = ["g","h","f"]
     labelagent = ["V1","ACC","RNN"]
 
     # load mouse data
@@ -1593,6 +1698,7 @@ function figure5()
     neuronpositionsconcat = Int64[]
     contextindicesconcat = zeros(Float64, 0, 3)
     for ag in [1,2,3]
+        sourcedata = DataFrame(mouseid=String[], neuronposition=Int[], contextindex=Float64[])
         ax = axs[3+agpanel[ag]]
         if ag<3
             contextindex = ag==1 ? contextindexV1 : contextindexACC
@@ -1610,7 +1716,9 @@ function figure5()
                 # concatenate for correlation
                 neuronpositionsconcat = [neuronpositionsconcat; neuronpositions]
                 contextindicesconcat = [contextindicesconcat; contextindex[mid]]
+                sourcedata = vcat(sourcedata, DataFrame(mouseid=mouseids[mid], neuronposition=neuronpositions, contextindex=contextindex[mid][:,4]))
             end
+            CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig5","fig5-"*["g","h"][ag]*".csv"), sourcedata)
 
             # individual mice
             plot!(ax, contextindices[:,:,4], lw=1, color=:grey, alpha=0.5)
@@ -1657,15 +1765,18 @@ function figure5()
                 annotate!(ax, [1,nneurons÷2,1,2][px], [-0.06,0.14,-0.2,-0.15][px], "r=$(r) p$(p[px])",
                               font(pointsize=8, color=:red, halign=[:left,:center,:left,:left][px]))
             
+
+                sourcedata = DataFrame(neuronposition=1:nneurons, contextindex=m, sem=e)
             end
 
             hline!(ax,[0], ls=:dash, color=:grey, alpha=0.5)
             ylims!(ax, -0.2, 0.2)
             yticks!(ax, -0.2:0.1:0.2)
             xticks!(ax,[1,size(allCim,1)÷2,size(allCim,1)])
+            CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig5","fig5-f.csv"), sourcedata)
         end
 
-
+        return
 
         # title!(ax,labelagent[ag])
         annotate!(ax,0,[10,10,0.26][ag],text(labelagent[ag],10,:left))
@@ -1702,8 +1813,10 @@ function figure5()
     xticks!(ax,[1,2,3],labels)#,rotation=45)
     xlabel!(ax, "context index time")
     ylabel!(ax, "correlation")
-    @panellabel ax "I" -0.4 1.3
+    @panellabel ax "i" -0.4 1.3
 
+    sourcedata = DataFrame(indextime=labels, r=rs, p=ps)
+    CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","fig5","fig5-i.csv"), sourcedata)
 
     # plot!(axs[7], inset_subplots=(7, bbox(0.70, 0.80, 0.30, 0.20, :bottom, :left)))
     # labels = ["pre","start","dec"]
@@ -1816,6 +1929,7 @@ function supplementaryfigure1()
         contextboundary = findfirst(triallist[!,:context].==triallist[end,:context])
         boundaries = [1 contextboundary-1; contextboundary nrow(triallist)]
         choices = choicesselected(triallist)
+        sourcedata = DataFrame()
         for sx in 1:2, congi in 1:2
             ix = (sx-1)*2+congi
             plot!(axs[spn], inset_subplots=(spn, bbox(0, 1-ix*0.22, 1, 0.18, :bottom, :left)))
@@ -1842,7 +1956,9 @@ function supplementaryfigure1()
             # plot!(ax, ytickfonthalign=:left, xtickfontvalign=:bottom)
             hline!(ax,[0.5],color=:grey, ls=:dash, label=nothing)
             # vline!(ax, [contextboundary-0.5], color=:grey, label=nothing)
+            sourcedata[!,Symbol(["go","nogo"][sx]*"-"*["congruent","incongruent"][congi])] = maperfs[:,sx,congi]
         end
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig1","sfig1-"*["a","b","c","d"][n]*".csv"), sourcedata)
         
         plot!(axs[spn], inset_subplots=(spn, bbox(0, 0, 1, 0.06, :bottom, :left)))
         ax = axs[axinsetzero+(n-1)*5+5]
@@ -1857,8 +1973,8 @@ function supplementaryfigure1()
         plot!(ax, yaxis=false)
         plot!(ax, bottom_margin=20*Plots.px)
         
-        @panellabel axs[spn] ["A","B","C","D"][n] -0.1 1.12
-        @panellabel axs[spn+1] ["E","F","G","H"][n] -20 0.3
+        @panellabel axs[spn] ["a","b","c","d"][n] -0.1 1.12
+        @panellabel axs[spn+1] ["e","f","g","h"][n] -20 0.3
 
 
     end
@@ -1916,12 +2032,17 @@ function supplementaryfigure1()
             
             if n==1 annotate!(ax, 30, 0.11, text(["visual","auditory"][cx]*" context", :hcenter, [:blue,:green][cx], 10)) end
             if n==1 && cx==1 plot!(ax, legend=:bottomleft, foreground_color_legend=nothing, background_color_legend=nothing, legendfontsize=8) end
+
+            sourcedata = DataFrame(probability=prob_ntrials_successes)
+            # sourcedata[!,
+            CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig1","sfig1-"*["e","f","g","h"][n]*["-visual","-auditory"][cx]*".csv"), sourcedata)
+
         end
 
 
     end
 
-    # @panellabel ax "D" -0.20 1.2
+    # @panellabel ax "d" -0.20 1.2
 
 
     plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)
@@ -1984,8 +2105,9 @@ function supplementaryfigure2()
 
     sm = 51 # smoothing window
 
-    for (bx,mouseind) in enumerate((mousev1ind,mouseaccind))
-        if bx==1 continue end
+    for (brx,mouseind) in enumerate((mousev1ind,mouseaccind))
+        if brx==1 continue end
+        sourcedata = DataFrame()
         for (stimulusindex,stimulus) in enumerate(labelsstimulus)
             for contextindex in ([1,2],[2,1])[stimulusindex]
                 context = labelscontexts[contextindex]
@@ -1998,7 +2120,7 @@ function supplementaryfigure2()
                     e = @movingaverage(accuracieslists[mouseid,contextindex,stimulusindex,:,3],sm)
                     plot!(ax, timestamps, m, ribbon=e, lw=1.5, color=colors[contextindex,stimulusindex], alpha=0.85, fillalpha=0.25,
                           label=labelsrelevancies[contextindex,stimulusindex]*" ("*context*" context)")
-                
+                    
                     # # draw mean
                     # m = @movingaverage(dropdims(mean(accuracieslists[mouseind,contextindex,stimulusindex,:,1],dims=1),dims=1),sm)
                     # e = @movingaverage(dropdims(std(accuracieslists[mouseind,contextindex,stimulusindex,:,1],dims=1),dims=1)/sqrt(length(mouseind))+
@@ -2014,10 +2136,14 @@ function supplementaryfigure2()
                     ylabel!(ax, stimulus*" stimulus\naccuracy");
                     if stimulusindex==2 plot!(ax, bottom_margin=60*Plots.px) end
                     plot!(ax, left_margin=60*Plots.px, right_margin=40*Plots.px)
-                    if mx==1 && stimulusindex==1 @panellabel ax "A" -0.25 1.15 end
+                    if mx==1 && stimulusindex==1 @panellabel ax "a" -0.25 1.15 end
+
+                    sourcedata[!,Symbol("mouse$mouseid"*labelsrelevancies[contextindex,stimulusindex]*"("*context*"context)mean")] = m
+                    sourcedata[!,Symbol("mouse$mouseid"*labelsrelevancies[contextindex,stimulusindex]*"("*context*"context)sem")] = e
                 end
             end
         end
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig2","sfig2-a"*".csv"), sourcedata)
     end
 
 
@@ -2026,8 +2152,9 @@ function supplementaryfigure2()
 
     # projections to DVs
     colors = [:deepskyblue :darkblue; :lime :darkgreen]
-    for (bx,mouseind) in enumerate((mousev1ind,mouseaccind))
-        if bx==1 continue end
+    for (brx,mouseind) in enumerate((mousev1ind,mouseaccind))
+        if brx==1 continue end
+        sourcedata = DataFrame()
         for (sx, stimulus) in enumerate(labelsstimulus)
             for (rx,labelrelevance) in enumerate(["relevant","irrelevant"])
                 cx = [sx,3-sx][rx]
@@ -2044,7 +2171,11 @@ function supplementaryfigure2()
                     if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
                     title!(ax, ["subspace projection\nmouse $mx",""][sx])
                     ylims!(ax, 0, ylims(ax)[2])
-                    if mx==1 && sx==1 @panellabel ax "B" -0.25 1.15 end
+                    if mx==1 && sx==1 @panellabel ax "b" -0.25 1.15 end
+
+                    sourcedata[!,Symbol("mouse$mouseid"*labelrelevance*"("*labelscontexts[cx]*"context)mean")] = m
+                    sourcedata[!,Symbol("mouse$mouseid"*labelrelevance*"("*labelscontexts[cx]*"context)sem")] = e
+    
                 end
 
                 # ax = axs[sx,3]
@@ -2058,8 +2189,10 @@ function supplementaryfigure2()
                 # hline!(ax,[0],ls=:dash,color=:darkgray, label=nothing)
                 # # ylims!(ax,0,800)
 
+
             end
         end
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig2","sfig2-b"*".csv"), sourcedata)
     end
 
 
@@ -2078,8 +2211,8 @@ function supplementaryfigure2()
     alphas = [1.0 0.8]
     relevancylabels = ["relevant","irrelevant"]
     consistencylabels = ["consistent","exploratory"]
-    for (bx,brainarea) in enumerate(["V1","ACC"])
-        if bx==1 continue end
+    for (brx,brainarea) in enumerate(["V1","ACC"])
+        if brx==1 continue end
     
         mouseids = collectsubjectids(brainarea)
         nmice = length(mouseids)
@@ -2094,6 +2227,8 @@ function supplementaryfigure2()
         accuraciesall = @catvecleftsingleton accuraciesall
         push!(accuraciesallareas, accuraciesall)
 
+        sourcedatac = DataFrame()
+        sourcedatad = DataFrame()
         for sx in 1:2        # stimulus modalities
             for rx in 1:2    # relevancies
                 for bx in 1:2        # consistency
@@ -2129,11 +2264,21 @@ function supplementaryfigure2()
                         ylabel!(ax, ["visual","auditory"][sx]*" stimulus\naccuracy");
                         title!(ax, ["behaviour $(relevancylabels[rx])\nmouse $mx",""][sx])
                         if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
-                        if mx==1 && sx==1 @panellabel ax ["C", "D"][rx] -0.25 1.15 end
+                        if mx==1 && sx==1 @panellabel ax ["c", "d"][rx] -0.25 1.15 end
+
+                        if sx==1
+                            sourcedatac[!,Symbol("mouse$mouseid"*consistencylabels[bx]*relevancylabels[rx]*"mean")] = m
+                            sourcedatac[!,Symbol("mouse$mouseid"*consistencylabels[bx]*relevancylabels[rx]*"sem")] = e
+                        elseif sx==2
+                            sourcedatad[!,Symbol("mouse$mouseid"*consistencylabels[bx]*relevancylabels[rx]*"mean")] = m
+                            sourcedatad[!,Symbol("mouse$mouseid"*consistencylabels[bx]*relevancylabels[rx]*"sem")] = e
+                        end
                     end
                 end
             end
         end
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig2","sfig2-c.csv"), sourcedatac)
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig2","sfig2-d.csv"), sourcedatad)
     end
 
 
@@ -2166,7 +2311,9 @@ function supplementaryfigure3()
     nblocks = 600 ÷ blockwidth
     sm = 51 # smoothing window
     colors = [:deeppink,:rebeccapurple,:black]
-
+    
+    sourcedata = DataFrame()
+    
     axs = plot(layout=(1,4),size=(1.2* 4*300, 1*300), legend=false, left_margin=30*Plots.px, top_margin=15*Plots.px, bottom_margin=30*Plots.px, dpi=dpi)
 
     mouseids = collectsubjectids("ACC")
@@ -2195,6 +2342,8 @@ function supplementaryfigure3()
 
             if i<3 accuraciesblockaveraged[i,:] = mean(reshape(accur[:,1],blockwidth,nblocks), dims=1)[1,:] end
 
+            sourcedata[!,Symbol("mouse$mouseid"*["testedge","testmiddle","all"][i]*"mean")] = m
+            sourcedata[!,Symbol("mouse$mouseid"*["testedge","testmiddle","all"][i]*"sem")] = e
         end
         plot!(ax, legend=:topleft, foreground_color_legend=nothing, background_color_legend=nothing)
 
@@ -2205,7 +2354,9 @@ function supplementaryfigure3()
 
         annotate!(ax, 3.5, 1.124, text("n=$nblocks\np=$(round(p,digits=2))\nt=$(round(t,digits=2))", :left, 8))
 
-        @panellabel ax ["A","B","C","D"][mx] -0.25 1.1
+        @panellabel ax ["a","b","c","d"][mx] -0.25 1.1
+
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig3","sfig3-"*["a","b","c","d"][mx]*".csv"), sourcedata)
     end
 
 
@@ -2437,7 +2588,7 @@ function supplementaryfigure4()
             if sx==2 xlabel!(ax,"time [s]") end
             if sx==1
                 plot!(ax, top_margin=40*Plots.px)
-                @panellabel ax ["I","J","K","L"][mx] -0.25 1.2
+                @panellabel ax ["i","j","k","l"][mx] -0.25 1.2
             end
         end
 
@@ -2500,7 +2651,7 @@ function supplementaryfigure4()
 
 
         # predictive choice geometry
-
+        sourcedata = DataFrame()
         colors = [:dodgerblue :darkblue; :lime :darkgreen]
         for (sx, stimulus) in enumerate(labelsstimulus)
             ax = axs[2+sx]
@@ -2514,15 +2665,17 @@ function supplementaryfigure4()
                 if sx==2 xlabel!(ax, "time from stimulus onset [s]") end
                 plot!(ax, legend=:topright, foreground_color_legend=nothing, background_color_legend=nothing)
                 @info "$(labelsstimulus[sx]) $(labelsrelevancy[rx])" gn=ntrialsprojectionall[mx,sx,rx,:]
+                sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"mean")] = m
+                sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"sem")] = e
             end
             @nolinebackground(ax, config[:stimulusstart], config[:stimulusend], config[:waterstart], bg=:white)
             @nolinebackground(ax, timestamps[timestampindices[1]], timestamps[timestampindices[end]], nothing, bg=nothing)
             hline!(ax,[0],ls=:dash,color=:darkgray, label=nothing)
             ylims!(ax, -5, 45)
             if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
-            if sx==1 @panellabel ax ["E","F","G","H"][mx] -0.25 1.1 end
+            if sx==1 @panellabel ax ["e","f","g","h"][mx] -0.25 1.1 end
         end
-
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig4","sfig4-"*["e","f","g","h"][mx]*".csv"), sourcedata)
 
 
 
@@ -2533,6 +2686,7 @@ function supplementaryfigure4()
         nblocks = length(suppresstimes) ÷ blockwidth
         explickstats = zeros(nmice,2,2,nblocks)                    # (mice,stimulus,relevance,block-averaged time)
         lickandallstats = zeros(nmice,2,2,2,nblocks)                     # (mice,stimulus,relevance,licking,block-averaged time)
+        sourcedata = DataFrame()
         for (lx, (accuraciesall,ntrialsall)) in enumerate(zip((accuracieslickall,accuraciesnolickall),(ntrialslickall,ntrialsnolickall)))
             if lx==2 continue end     # no concern with no lick
             lickcontrollabel = ["lick","no lick"][lx]
@@ -2565,6 +2719,11 @@ function supplementaryfigure4()
                             explickstats[mx,sx,rx,:] = mean(reshape(accuraciesall[mx,bx,sx,rx,suppresstimes,1],blockwidth,nblocks),dims=1)[1,:]
                             lickandallstats[mx,sx,rx,1,:] = mean(reshape(accuraciesall[mx,bx,sx,rx,suppresstimes,1],blockwidth,nblocks),dims=1)[1,:]
                             lickandallstats[mx,sx,rx,2,:] = mean(reshape(accuraciesfullall[mx,bx,sx,rx,suppresstimes,1],blockwidth,nblocks),dims=1)[1,:]
+
+                            sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"explick"*lickcontrollabel*"mean")] = m
+                            sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"explick"*lickcontrollabel*"sem")] = e
+                            sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"expallmean")] = mfa
+                            sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"expallsem")] = efa
                         end
                         # consistent control                            
                         # mfaconsr = @movingaverage(accuraciesall[mx,1,sx,1,:,1],sm) # consistent control relevant
@@ -2581,6 +2740,8 @@ function supplementaryfigure4()
                                 plot!(ax,timestamps,mfacons,ribbon=efacons,lw=3, color=:fuchsia, alpha=alphas[rx], fillalpha=0.1,
                                     label="consistent, $(labelsrelevancy[rx]) $(lickcontrollabel) only trials")
                             end
+                            sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"consallmean")] = mfacons
+                            sourcedata[!,Symbol("mouse$mouseid"*labelsstimulus[sx]*labelsrelevancy[rx]*"consallsem")] = efacons
                         end
                     end
                 end
@@ -2622,7 +2783,7 @@ function supplementaryfigure4()
                 end
 
                 
-                if sx==1 @panellabel ax ["A","B","C","D"][mx] -0.25 1.15 end
+                if sx==1 @panellabel ax ["a","b","c","d"][mx] -0.25 1.15 end
                 if sx==2 plot!(ax, bottom_margin=60*Plots.px) end
             end
         end
@@ -2630,6 +2791,10 @@ function supplementaryfigure4()
         plot!(axs, tick_direction=:out, xgrid=false, ygrid=false)#, ytickfonthalign=:left, xtickfontvalign=:bottom, xguidevalign=:top)
         
         push!(msps,axs)
+
+
+        CSV.write(joinpath(config[:publicationfigurespath],"sourcedata","sfig4","sfig4-"*["a","b","c","d"][mx]*".csv"), sourcedata)
+        
     end     
 
     maxs = plot(msps..., layout=(1,nmice), size=(nmice*350, 6*300), dpi=dpi)
